@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digitador Tiro al Blanco</title>
+    <style>
+        :root {
+            --bg-color: #e0e0ce;
+            --panel-bg: #d4d4c4;
+            --text-color: #333;
+            --border-color: #888;
+            --highlight-color: #d90000;
+            --separator-color: #e6b800;
+            --target-color: #1a1a1a;
+            --font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-color);
+            font-family: var(--font-family);
+            color: var(--text-color);
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        main {
+            flex-grow: 1;
+            position: relative;
+            background-color: var(--bg-color);
+            cursor: crosshair; /* Mira de precisión */
+            overflow: hidden;
+            /* Patrón de fondo sutil para dar aspecto retro */
+            background-image: radial-gradient(#d4d4c4 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .target-number {
+            position: absolute;
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--target-color);
+            cursor: crosshair;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            /* Box shadow para simular botones en relieve antiguos */
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2), inset 1px 1px 0px rgba(255,255,255,0.8);
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            transition: left 0.1s linear, top 0.1s linear; /* Transición suave para el movimiento errático */
+            z-index: 10;
+        }
+
+        .target-number:active {
+            box-shadow: inset 2px 2px 0px rgba(0,0,0,0.2);
+            background-color: #c4c4b4;
+        }
+
+        .separator {
+            height: 4px;
+            background-color: var(--separator-color);
+            width: 100%;
+            border-top: 2px solid #b38f00;
+            border-bottom: 2px solid #ffcc00;
+            box-sizing: border-box;
+        }
+
+        /* Estilos para el texto de instrucciones */
+        .instruction-text {
+            font-size: 13px;
+            color: #444;
+            margin-right: auto; /* Empuja los siguientes elementos a la derecha */
+            border: 1px dashed var(--border-color);
+            padding: 6px 12px;
+            background-color: #dfdfd1;
+            box-shadow: inset 1px 1px 0px rgba(255,255,255,0.7);
+        }
+
+        footer {
+            height: 80px;
+            background-color: var(--panel-bg);
+            border-top: 2px solid #fff;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .phone-label {
+            font-size: 18px;
+            font-weight: bold;
+            margin-right: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #444;
+        }
+
+        .phone-display-container {
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            border: 3px solid var(--highlight-color);
+            padding: 5px 10px;
+            min-width: 200px;
+            height: 40px;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .phone-prefix {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--highlight-color);
+            margin-right: 5px;
+        }
+
+        .phone-number-value {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            min-height: 28px;
+            display: flex; /* Añadido para colocar los dígitos arrastrables */
+            gap: 2px;
+        }
+
+        /* Estilos para los dígitos arrastrables */
+        .phone-digit {
+            cursor: grab;
+            display: inline-block;
+            padding: 0 3px;
+            background-color: transparent;
+            transition: background-color 0.1s;
+        }
+
+        .phone-digit:hover {
+            background-color: #eaeaea;
+            outline: 1px solid #ccc;
+        }
+
+        .phone-digit:active {
+            cursor: grabbing;
+        }
+
+        /* Estilos para el tacho de basura retro */
+        .trash-can {
+            font-size: 24px;
+            margin-left: 15px;
+            cursor: pointer;
+            padding: 4px 10px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2), inset 1px 1px 0px rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s;
+        }
+
+        .trash-can.drag-over {
+            border-color: var(--highlight-color);
+            background-color: #ffb3b3;
+            box-shadow: inset 2px 2px 0px rgba(0,0,0,0.2);
+        }
+
+    </style>
+</head>
+<body>
+
+    <main id="shooting-gallery">
+        <!-- Los números se generarán aquí -->
+    </main>
+
+    <div class="separator"></div>
+
+    <footer>
+        <!-- Texto de instrucción añadido a la izquierda -->
+        <div class="instruction-text">&gt; INFO: Arrastra un dígito al tacho para borrarlo</div>
+        
+        <div class="phone-label">numero telefonico:</div>
+        <div class="phone-display-container">
+            <span class="phone-prefix">+</span>
+            <span class="phone-number-value" id="phone-display"></span>
+        </div>
+        <div id="trash-can" class="trash-can" title="Arrastra números aquí para eliminarlos">🗑️</div>
+    </footer>
+
+    <script>
+        const gallery = document.getElementById('shooting-gallery');
+        const phoneDisplay = document.getElementById('phone-display');
+        const trashCan = document.getElementById('trash-can');
+        
+        let phoneNumber = []; // Cambiado a Array para facilitar el Drag & Drop
+        const maxActiveNumbers = 8;
+        const numberLifeTimeMs = 4000; // Incrementado a 4 segundos
+        const TARGET_SIZE = 62; // Tamaño real aprox de los bloques para físicas (40px + padding + border)
+
+        // Array para mantener registro de los elementos activos
+        let activeTargets = [];
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // --- NUEVO: Sistema de "bolsa" para asegurar diversidad de dígitos ---
+        let digitBag = [];
+        
+        function getNextRandomDigit() {
+            if (digitBag.length === 0) {
+                // Llenar la bolsa con los dígitos del 0 al 9
+                digitBag = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+                // Mezclar aleatoriamente (Algoritmo Fisher-Yates)
+                for (let i = digitBag.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [digitBag[i], digitBag[j]] = [digitBag[j], digitBag[i]];
+                }
+            }
+            return digitBag.pop();
+        }
+
+        function appendDigit(digit) {
+            phoneNumber.push(digit);
+            renderPhoneDisplay();
+        }
+
+        // Renderiza el número telefónico creando spans arrastrables
+        function renderPhoneDisplay() {
+            phoneDisplay.innerHTML = '';
+            phoneNumber.forEach((digit, index) => {
+                const span = document.createElement('span');
+                span.textContent = digit;
+                span.classList.add('phone-digit');
+                span.draggable = true; // Permite arrastrar el dígito
+                
+                span.addEventListener('dragstart', (e) => {
+                    // Guardar el índice del elemento que se está arrastrando
+                    e.dataTransfer.setData('text/plain', index);
+                    span.style.opacity = '0.4';
+                });
+                
+                span.addEventListener('dragend', (e) => {
+                    span.style.opacity = '1';
+                });
+                
+                phoneDisplay.appendChild(span);
+            });
+        }
+
+        // Lógica de Drag & Drop para el tacho de basura
+        trashCan.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Necesario para permitir que se suelte el elemento
+            trashCan.classList.add('drag-over');
+        });
+
+        trashCan.addEventListener('dragleave', () => {
+            trashCan.classList.remove('drag-over');
+        });
+
+        trashCan.addEventListener('drop', (e) => {
+            e.preventDefault();
+            trashCan.classList.remove('drag-over');
+            
+            // Obtener el índice que fue arrastrado
+            const indexStr = e.dataTransfer.getData('text/plain');
+            if (indexStr !== '') {
+                const index = parseInt(indexStr, 10);
+                if (!isNaN(index)) {
+                    phoneNumber.splice(index, 1); // Elimina el dígito del array
+                    renderPhoneDisplay(); // Actualiza la pantalla (desplazando los demás a la izquierda)
+                }
+            }
+        });
+
+        class TargetNumber {
+            constructor() {
+                this.element = document.createElement('div');
+                this.element.classList.add('target-number');
+                
+                this.digit = getNextRandomDigit();
+                this.element.textContent = this.digit;
+                this.element.style.transition = 'none';
+                
+                this.updateBounds();
+                
+                // --- NUEVO: Aparición sin solapamiento ---
+                let validPosition = false;
+                let attempts = 0;
+                // Intenta buscar un lugar libre hasta 100 veces
+                while (!validPosition && attempts < 100) {
+                    this.x = getRandomInt(0, this.maxX);
+                    this.y = getRandomInt(0, this.maxY);
+                    validPosition = true;
+                    // Comprobar distancia con los demás activos
+                    for (let target of activeTargets) {
+                        const dx = this.x - target.x;
+                        const dy = this.y - target.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < TARGET_SIZE + 5) { // + 5px de margen extra de seguridad
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    attempts++;
+                }
+                
+                const angle = Math.random() * Math.PI * 2;
+                const speed = getRandomInt(3, 6) * 1.5; 
+                
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                
+                this.updatePosition();
+                
+                this.element.addEventListener('mousedown', (e) => this.shoot(e));
+                
+                gallery.appendChild(this.element);
+
+                // Solo iniciamos temporizador de vida, el movimiento físico lo controla gameLoop
+                this.lifeTimer = setTimeout(() => this.die(), numberLifeTimeMs);
+            }
+
+            updateBounds() {
+                this.maxX = gallery.clientWidth - TARGET_SIZE; 
+                this.maxY = gallery.clientHeight - TARGET_SIZE;
+                this.maxX = Math.max(0, this.maxX);
+                this.maxY = Math.max(0, this.maxY);
+            }
+
+            updatePosition() {
+                this.element.style.left = `${this.x}px`;
+                this.element.style.top = `${this.y}px`;
+            }
+
+            shoot(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                appendDigit(this.digit);
+                this.destroy();
+                maintainTargetCount();
+            }
+
+            die() {
+                this.destroy();
+                maintainTargetCount();
+            }
+
+            destroy() {
+                clearTimeout(this.lifeTimer);
+                if (this.element.parentNode) {
+                    this.element.parentNode.removeChild(this.element);
+                }
+                
+                const index = activeTargets.indexOf(this);
+                if (index > -1) {
+                    activeTargets.splice(index, 1);
+                }
+            }
+        }
+
+        function maintainTargetCount() {
+            // Modificado para que solo reemplace uno a la vez, respetando la aparición escalonada inicial
+            if (activeTargets.length < maxActiveNumbers) {
+                activeTargets.push(new TargetNumber());
+            }
+        }
+
+        // --- NUEVO: Bucle central de físicas y colisiones ---
+        function gameLoop() {
+            // 1. Mover todos y rebotar en las paredes del contenedor
+            for (let target of activeTargets) {
+                target.updateBounds();
+                target.x += target.vx;
+                target.y += target.vy;
+
+                if (target.x <= 0) {
+                    target.x = 0;
+                    target.vx *= -1;
+                } else if (target.x >= target.maxX) {
+                    target.x = target.maxX;
+                    target.vx *= -1;
+                }
+
+                if (target.y <= 0) {
+                    target.y = 0;
+                    target.vy *= -1;
+                } else if (target.y >= target.maxY) {
+                    target.y = target.maxY;
+                    target.vy *= -1;
+                }
+            }
+
+            // 2. Colisiones entre números (Bloques físicos)
+            for (let i = 0; i < activeTargets.length; i++) {
+                for (let j = i + 1; j < activeTargets.length; j++) {
+                    let t1 = activeTargets[i];
+                    let t2 = activeTargets[j];
+
+                    // Distancia entre los centros de ambos bloques
+                    let c1x = t1.x + TARGET_SIZE / 2;
+                    let c1y = t1.y + TARGET_SIZE / 2;
+                    let c2x = t2.x + TARGET_SIZE / 2;
+                    let c2y = t2.y + TARGET_SIZE / 2;
+
+                    let dx = c2x - c1x;
+                    let dy = c2y - c1y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < TARGET_SIZE) {
+                        // Existe solapamiento
+                        let overlap = TARGET_SIZE - distance;
+                        let nx = dx / distance;
+                        let ny = dy / distance;
+
+                        // Separar ligeramente para evitar que se queden pegados (stuck)
+                        t1.x -= (nx * overlap / 2);
+                        t1.y -= (ny * overlap / 2);
+                        t2.x += (nx * overlap / 2);
+                        t2.y += (ny * overlap / 2);
+
+                        // Choque elástico perfecto (intercambio de momento/velocidad)
+                        let dvx = t2.vx - t1.vx;
+                        let dvy = t2.vy - t1.vy;
+                        
+                        let velAlongNormal = dvx * nx + dvy * ny;
+
+                        // Solo efectuar el rebote si se están acercando
+                        if (velAlongNormal < 0) {
+                            let impulse = -velAlongNormal; 
+                            
+                            t1.vx -= nx * impulse;
+                            t1.vy -= ny * impulse;
+                            t2.vx += nx * impulse;
+                            t2.vy += ny * impulse;
+                        }
+                    }
+                }
+            }
+
+            // 3. Renderizar (aplicar al DOM) las nuevas posiciones
+            for (let target of activeTargets) {
+                target.updatePosition();
+            }
+
+            requestAnimationFrame(gameLoop); // Llamar recursivamente al siguiente cuadro de animación
+        }
+
+        // Iniciar el bucle de físicas
+        requestAnimationFrame(gameLoop);
+
+        // --- NUEVO: Iniciar el juego de manera escalonada ---
+        let initialSpawns = 0;
+        // Distribuimos la aparición inicial a lo largo del tiempo de vida para lograr un ciclo natural
+        const spawnDelay = numberLifeTimeMs / maxActiveNumbers; 
+        
+        const spawnInterval = setInterval(() => {
+            if (initialSpawns < maxActiveNumbers) {
+                activeTargets.push(new TargetNumber());
+                initialSpawns++;
+            } else {
+                clearInterval(spawnInterval); // Terminar fase de arranque
+            }
+        }, spawnDelay);
+
+        // Manejar cambios de tamaño de ventana para ajustar los límites de movimiento
+        window.addEventListener('resize', () => {
+            activeTargets.forEach(target => {
+                target.updateBounds();
+                // Forzar que vuelvan adentro si quedaron fuera al achicar ventana
+                target.x = Math.max(0, Math.min(target.x, target.maxX));
+                target.y = Math.max(0, Math.min(target.y, target.maxY));
+                target.updatePosition();
+            });
+        });
+
+        // Prevenir selección de texto accidental al hacer click furiosamente
+        document.addEventListener('selectstart', (e) => e.preventDefault());
+
+    </script>
+</body>
+</html>
