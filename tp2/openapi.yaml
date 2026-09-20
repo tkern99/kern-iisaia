@@ -1,0 +1,196 @@
+openapi: 3.1.0
+info:
+  title: API de Catálogo de Libros
+  version: 1.0.0
+  description: API para gestionar autores, libros y géneros en un catálogo.
+
+paths:
+  /authors:
+    get:
+      summary: Obtener lista de autores
+      responses:
+        '200':
+          description: Lista de autores obtenida con éxito
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Author'
+                  
+    post:
+      summary: Crear un nuevo autor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorInput'
+      responses:
+        '201':
+          description: Autor creado con éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Author'
+        '400':
+          description: Bad Request - Falta el campo requerido (name)
+
+  /books:
+    get:
+      summary: Obtener lista de libros
+      parameters:
+        - name: author_id
+          in: query
+          description: Filtra los libros por el ID de un autor específico
+          required: false
+          schema:
+            type: string
+        - name: genre_id
+          in: query
+          description: Filtra los libros por el ID de un género específico
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de libros obtenida con éxito
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+                  
+    post:
+      summary: Crear un nuevo libro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        '201':
+          description: Libro creado con éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          description: Bad Request - Faltan campos requeridos (title o author_id)
+
+  /genres:
+    get:
+      summary: Obtener lista de géneros
+      responses:
+        '200':
+          description: Lista de géneros obtenida con éxito
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Genre'
+                  
+    post:
+      summary: Crear un nuevo género
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenreInput'
+      responses:
+        '201':
+          description: Género creado con éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Genre'
+        '400':
+          description: Bad Request - Falta el campo requerido (name)
+
+components:
+  schemas:
+    # --- SCHEMAS DE SALIDA (Incluyen ID) ---
+    Author:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: ID único generado por el servidor
+        name:
+          type: string
+        bio:
+          type: string
+          
+    Book:
+      type: object
+      required:
+        - id
+        - title
+        - author_id
+      properties:
+        id:
+          type: string
+          description: ID único generado por el servidor
+        title:
+          type: string
+        author_id:
+          type: string
+        genre_ids:
+          type: array
+          description: Lista de IDs de los géneros a los que pertenece el libro
+          items:
+            type: integer
+
+    Genre:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          description: ID único generado por el servidor
+        name:
+          type: string
+
+    # --- SCHEMAS DE ENTRADA (Sin ID) ---
+    AuthorInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        bio:
+          type: string
+          
+    BookInput:
+      type: object
+      required:
+        - title
+        - author_id
+      properties:
+        title:
+          type: string
+        author_id:
+          type: string
+        genre_ids:
+          type: array
+          description: Lista de IDs de los géneros a los que pertenece el libro
+          items:
+            type: integer
+
+    GenreInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
