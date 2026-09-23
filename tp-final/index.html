@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Tiro al Blanco</title>
+    <style>
+        :root {
+            --bg-color: #e0e0ce;
+            --panel-bg: #d4d4c4;
+            --text-color: #333;
+            --border-color: #888;
+            --highlight-color: #d90000;
+            --separator-color: #e6b800;
+            --target-color: #1a1a1a;
+            --font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-color);
+            font-family: var(--font-family);
+            color: var(--text-color);
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background-color: var(--panel-bg);
+            border-bottom: 2px solid #fff;
+            box-shadow: inset 0 -2px 4px rgba(0,0,0,0.08);
+            flex-shrink: 0;
+        }
+
+        .app-title {
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-right: auto;
+        }
+
+        .menu-btn {
+            font-family: var(--font-family);
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 8px 12px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2), inset 1px 1px 0px rgba(255,255,255,0.8);
+            cursor: pointer;
+        }
+
+        .menu-btn.active {
+            background-color: #c4c4b4;
+            box-shadow: inset 2px 2px 0px rgba(0,0,0,0.2);
+            border-color: var(--highlight-color);
+        }
+
+        .view {
+            display: none;
+            flex-direction: column;
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        .view.active {
+            display: flex;
+        }
+
+        main {
+            flex-grow: 1;
+            position: relative;
+            background-color: var(--bg-color);
+            cursor: crosshair;
+            overflow: hidden;
+            background-image: radial-gradient(#d4d4c4 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .target-number {
+            position: absolute;
+            font-size: 37px;
+            font-weight: bold;
+            color: var(--target-color);
+            cursor: crosshair;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 46px;
+            height: 46px;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2), inset 1px 1px 0px rgba(255,255,255,0.8);
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            transition: left 0.1s linear, top 0.1s linear;
+            z-index: 10;
+        }
+
+        .target-number:active {
+            box-shadow: inset 2px 2px 0px rgba(0,0,0,0.2);
+            background-color: #c4c4b4;
+        }
+
+        .separator {
+            height: 4px;
+            background-color: var(--separator-color);
+            width: 100%;
+            border-top: 2px solid #b38f00;
+            border-bottom: 2px solid #ffcc00;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        .instruction-text {
+            font-size: 13px;
+            color: #444;
+            margin-right: auto;
+            border: 1px dashed var(--border-color);
+            padding: 6px 12px;
+            background-color: #dfdfd1;
+            box-shadow: inset 1px 1px 0px rgba(255,255,255,0.7);
+        }
+
+        footer {
+            height: auto;
+            min-height: 80px;
+            background-color: var(--panel-bg);
+            border-top: 2px solid #fff;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px 20px;
+            box-sizing: border-box;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .phone-label, .name-label {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #444;
+        }
+
+        .phone-display-container {
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            border: 3px solid var(--highlight-color);
+            padding: 5px 10px;
+            min-width: 200px;
+            height: 40px;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .phone-prefix {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--highlight-color);
+            margin-right: 5px;
+        }
+
+        .phone-number-value {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            min-height: 28px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .phone-digit {
+            cursor: grab;
+            display: inline-block;
+            padding: 0 3px;
+            background-color: transparent;
+            transition: background-color 0.1s;
+        }
+
+        .phone-digit:hover {
+            background-color: #eaeaea;
+            outline: 1px solid #ccc;
+        }
+
+        .phone-digit:active {
+            cursor: grabbing;
+        }
+
+        .trash-can {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 10px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2), inset 1px 1px 0px rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s;
+        }
+
+        .trash-can.drag-over {
+            border-color: var(--highlight-color);
+            background-color: #ffb3b3;
+            box-shadow: inset 2px 2px 0px rgba(0,0,0,0.2);
+        }
+
+        #contact-name {
+            font-family: var(--font-family);
+            font-size: 16px;
+            padding: 6px 8px;
+            border: 2px solid var(--border-color);
+            background: #fff;
+            box-shadow: inset 2px 2px 4px rgba(0,0,0,0.08);
+            width: 180px;
+        }
+
+        .save-btn, .delete-btn {
+            font-family: var(--font-family);
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 8px 12px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2), inset 1px 1px 0px rgba(255,255,255,0.8);
+            cursor: pointer;
+        }
+
+        .save-btn:active, .delete-btn:active {
+            box-shadow: inset 2px 2px 0px rgba(0,0,0,0.2);
+        }
+
+        .status-msg {
+            font-size: 12px;
+            min-width: 160px;
+        }
+
+        .status-msg.error {
+            color: var(--highlight-color);
+            font-weight: bold;
+        }
+
+        .status-msg.ok {
+            color: #1a5c1a;
+            font-weight: bold;
+        }
+
+        .agenda-wrap {
+            flex-grow: 1;
+            overflow: auto;
+            padding: 20px;
+            background-image: radial-gradient(#d4d4c4 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .contacts-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+        }
+
+        .contacts-table th,
+        .contacts-table td {
+            border: 1px solid var(--border-color);
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        .contacts-table th {
+            background: #cfcfbf;
+            text-transform: uppercase;
+            font-size: 13px;
+        }
+
+        .empty-agenda {
+            padding: 16px;
+            border: 1px dashed var(--border-color);
+            background: #dfdfd1;
+        }
+
+        #app-shell {
+            display: none;
+            flex-direction: column;
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        #app-shell.visible {
+            display: flex;
+        }
+
+        .login-wrap {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: radial-gradient(#d4d4c4 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .login-panel {
+            width: min(420px, 90vw);
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.2), inset 1px 1px 0 rgba(255,255,255,0.8);
+            padding: 24px;
+        }
+
+        .login-panel h1 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .login-panel p {
+            margin: 0 0 16px;
+            font-size: 13px;
+        }
+
+        .login-panel label {
+            display: block;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 10px 0 4px;
+        }
+
+        .login-panel input {
+            font-family: var(--font-family);
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            border: 2px solid var(--border-color);
+            background: #fff;
+            box-shadow: inset 2px 2px 4px rgba(0,0,0,0.08);
+        }
+
+        .login-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .guest-warn {
+            margin-top: 16px;
+            border: 1px dashed var(--highlight-color);
+            padding: 10px;
+            font-size: 12px;
+            background: #f3e0e0;
+        }
+
+        .user-label {
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <section id="view-login" class="view active">
+        <div class="login-wrap">
+            <div class="login-panel">
+                <h1>Acceso a la agenda</h1>
+                <p>Creá una cuenta o entra. Los contactos quedan atados a tu usuario.</p>
+                <label for="auth-username">usuario</label>
+                <input id="auth-username" type="text" autocomplete="username">
+                <label for="auth-password">contrasena</label>
+                <input id="auth-password" type="password" autocomplete="current-password">
+                <div class="login-actions">
+                    <button id="btn-register" class="save-btn" type="button">Crear cuenta</button>
+                    <button id="btn-login" class="save-btn" type="button">Entrar</button>
+                </div>
+                <p id="auth-status" class="status-msg"></p>
+                <div class="guest-warn">
+                    INVITADO: los numeros agendados se perderan al cerrar o recargar la pagina.
+                </div>
+                <div class="login-actions">
+                    <button id="btn-guest" class="menu-btn" type="button">Continuar como invitado</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div id="app-shell">
+    <header>
+        <div class="app-title">Agenda Telefonica :: Tiro al Blanco</div>
+        <div id="user-label" class="user-label"></div>
+        <button id="btn-logout" class="menu-btn" type="button">Salir</button>
+        <button id="btn-view-shoot" class="menu-btn active" type="button">Digitar y Agendar</button>
+        <button id="btn-view-agenda" class="menu-btn" type="button">Agenda de Contactos</button>
+    </header>
+
+    <section id="view-shoot" class="view active">
+        <main id="shooting-gallery"></main>
+        <div class="separator"></div>
+        <footer>
+            <div class="instruction-text">&gt; INFO: Arrastra un dígito al tacho para borrarlo</div>
+            <div class="phone-label">numero telefonico:</div>
+            <div class="phone-display-container">
+                <span class="phone-prefix">+</span>
+                <span class="phone-number-value" id="phone-display"></span>
+            </div>
+            <div id="trash-can" class="trash-can" title="Arrastra números aquí para eliminarlos">🗑️</div>
+            <label class="name-label" for="contact-name">nombre:</label>
+            <input id="contact-name" type="text" maxlength="80" placeholder="CONTACTO">
+            <button id="save-contact" class="save-btn" type="button">Agendar contacto</button>
+            <div id="save-status" class="status-msg"></div>
+        </footer>
+    </section>
+
+    <section id="view-agenda" class="view">
+        <div class="agenda-wrap">
+            <table class="contacts-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Telefono</th>
+                        <th>Creado</th>
+                        <th>Accion</th>
+                    </tr>
+                </thead>
+                <tbody id="contacts-body"></tbody>
+            </table>
+            <p id="agenda-empty" class="empty-agenda" hidden>No hay contactos agendados.</p>
+            <p id="agenda-status" class="status-msg"></p>
+        </div>
+    </section>
+    </div>
+
+    <script>
+        const gallery = document.getElementById('shooting-gallery');
+        const phoneDisplay = document.getElementById('phone-display');
+        const trashCan = document.getElementById('trash-can');
+        const contactNameInput = document.getElementById('contact-name');
+        const saveButton = document.getElementById('save-contact');
+        const saveStatus = document.getElementById('save-status');
+        const contactsBody = document.getElementById('contacts-body');
+        const agendaEmpty = document.getElementById('agenda-empty');
+        const agendaStatus = document.getElementById('agenda-status');
+        const viewShoot = document.getElementById('view-shoot');
+        const viewAgenda = document.getElementById('view-agenda');
+        const viewLogin = document.getElementById('view-login');
+        const appShell = document.getElementById('app-shell');
+        const btnViewShoot = document.getElementById('btn-view-shoot');
+        const btnViewAgenda = document.getElementById('btn-view-agenda');
+        const authUsername = document.getElementById('auth-username');
+        const authPassword = document.getElementById('auth-password');
+        const authStatus = document.getElementById('auth-status');
+        const userLabel = document.getElementById('user-label');
+        const btnRegister = document.getElementById('btn-register');
+        const btnLogin = document.getElementById('btn-login');
+        const btnGuest = document.getElementById('btn-guest');
+        const btnLogout = document.getElementById('btn-logout');
+
+        let phoneNumber = [];
+        let maxActiveNumbers = 8;
+        const numberLifeTimeMs = 4000;
+        const TARGET_SIZE = 72;
+        const TARGET_OCCUPANCY = 0.04;
+        const MAX_ACTIVE_NUMBERS_CAP = 18;
+        const SPEED_REF_DIM = 1100;
+        let lastMinDim = 0;
+        let activeTargets = [];
+        let currentView = 'login';
+        let authMode = null;
+        let currentUsername = '';
+        let guestContacts = [];
+        let nextGuestId = 1;
+        let spawnStarted = false;
+
+        function galleryMinDim() {
+            return Math.min(gallery.clientWidth, gallery.clientHeight);
+        }
+
+        function computeMaxActiveNumbers() {
+            const width = gallery.clientWidth;
+            const height = gallery.clientHeight;
+            if (width < TARGET_SIZE || height < TARGET_SIZE) {
+                return 1;
+            }
+            const occupancyCount = Math.round(
+                (TARGET_OCCUPANCY * width * height) / (TARGET_SIZE * TARGET_SIZE)
+            );
+            const result = Math.max(1, Math.min(MAX_ACTIVE_NUMBERS_CAP, occupancyCount));
+            return result;
+        }
+
+        function randomTargetSpeed() {
+            const scale = Math.min(1, Math.max(0.25, galleryMinDim() / SPEED_REF_DIM));
+            const minSpeed = 2.2 * scale;
+            const maxSpeed = 4.4 * scale;
+            return minSpeed + Math.random() * (maxSpeed - minSpeed);
+        }
+
+        function syncFieldToViewport() {
+            if (currentView !== 'shoot') {
+                return;
+            }
+
+            const minDim = galleryMinDim();
+            if (minDim <= 0) {
+                return;
+            }
+
+            if (lastMinDim > 0) {
+                const factor = minDim / lastMinDim;
+                if (factor !== 1) {
+                    activeTargets.forEach((target) => {
+                        target.vx *= factor;
+                        target.vy *= factor;
+                    });
+                }
+            }
+            lastMinDim = minDim;
+            maxActiveNumbers = computeMaxActiveNumbers();
+
+            while (activeTargets.length > maxActiveNumbers) {
+                activeTargets[activeTargets.length - 1].destroy();
+            }
+            while (activeTargets.length < maxActiveNumbers) {
+                activeTargets.push(new TargetNumber());
+            }
+        }
+
+        function showView(viewName) {
+            currentView = viewName;
+            const isShoot = viewName === 'shoot';
+            viewShoot.classList.toggle('active', isShoot);
+            viewAgenda.classList.toggle('active', !isShoot);
+            btnViewShoot.classList.toggle('active', isShoot);
+            btnViewAgenda.classList.toggle('active', !isShoot);
+            if (!isShoot) {
+                loadContacts();
+            } else {
+                requestAnimationFrame(syncFieldToViewport);
+            }
+        }
+
+        btnViewShoot.addEventListener('click', () => showView('shoot'));
+        btnViewAgenda.addEventListener('click', () => showView('agenda'));
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        let digitBag = [];
+
+        function getNextRandomDigit() {
+            if (digitBag.length === 0) {
+                digitBag = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+                for (let i = digitBag.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [digitBag[i], digitBag[j]] = [digitBag[j], digitBag[i]];
+                }
+            }
+            return digitBag.pop();
+        }
+
+        function appendDigit(digit) {
+            phoneNumber.push(digit);
+            renderPhoneDisplay();
+        }
+
+        function renderPhoneDisplay() {
+            phoneDisplay.innerHTML = '';
+            phoneNumber.forEach((digit, index) => {
+                const span = document.createElement('span');
+                span.textContent = digit;
+                span.classList.add('phone-digit');
+                span.draggable = true;
+
+                span.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', index);
+                    span.style.opacity = '0.4';
+                });
+
+                span.addEventListener('dragend', () => {
+                    span.style.opacity = '1';
+                });
+
+                phoneDisplay.appendChild(span);
+            });
+        }
+
+        trashCan.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            trashCan.classList.add('drag-over');
+        });
+
+        trashCan.addEventListener('dragleave', () => {
+            trashCan.classList.remove('drag-over');
+        });
+
+        trashCan.addEventListener('drop', (e) => {
+            e.preventDefault();
+            trashCan.classList.remove('drag-over');
+
+            const indexStr = e.dataTransfer.getData('text/plain');
+            if (indexStr !== '') {
+                const index = parseInt(indexStr, 10);
+                if (!isNaN(index)) {
+                    phoneNumber.splice(index, 1);
+                    renderPhoneDisplay();
+                }
+            }
+        });
+
+        class TargetNumber {
+            constructor() {
+                this.element = document.createElement('div');
+                this.element.classList.add('target-number');
+
+                this.digit = getNextRandomDigit();
+                this.element.textContent = this.digit;
+                this.element.style.transition = 'none';
+
+                this.updateBounds();
+
+                let validPosition = false;
+                let attempts = 0;
+                while (!validPosition && attempts < 100) {
+                    this.x = getRandomInt(0, this.maxX);
+                    this.y = getRandomInt(0, this.maxY);
+                    validPosition = true;
+                    for (let target of activeTargets) {
+                        const dx = this.x - target.x;
+                        const dy = this.y - target.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < TARGET_SIZE + 5) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    attempts++;
+                }
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = randomTargetSpeed();
+
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+
+                this.updatePosition();
+                this.element.addEventListener('mousedown', (e) => this.shoot(e));
+                gallery.appendChild(this.element);
+                this.lifeTimer = setTimeout(() => this.die(), numberLifeTimeMs);
+            }
+
+            updateBounds() {
+                this.maxX = gallery.clientWidth - TARGET_SIZE;
+                this.maxY = gallery.clientHeight - TARGET_SIZE;
+                this.maxX = Math.max(0, this.maxX);
+                this.maxY = Math.max(0, this.maxY);
+            }
+
+            updatePosition() {
+                this.element.style.left = `${this.x}px`;
+                this.element.style.top = `${this.y}px`;
+            }
+
+            shoot(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                appendDigit(this.digit);
+                this.destroy();
+                maintainTargetCount();
+            }
+
+            die() {
+                this.destroy();
+                maintainTargetCount();
+            }
+
+            destroy() {
+                clearTimeout(this.lifeTimer);
+                if (this.element.parentNode) {
+                    this.element.parentNode.removeChild(this.element);
+                }
+
+                const index = activeTargets.indexOf(this);
+                if (index > -1) {
+                    activeTargets.splice(index, 1);
+                }
+            }
+        }
+
+        function maintainTargetCount() {
+            if (currentView !== 'shoot') {
+                return;
+            }
+            if (activeTargets.length < maxActiveNumbers) {
+                activeTargets.push(new TargetNumber());
+            }
+        }
+
+        function gameLoop() {
+            if (currentView === 'shoot') {
+                for (let target of activeTargets) {
+                    target.updateBounds();
+                    target.x += target.vx;
+                    target.y += target.vy;
+
+                    if (target.x <= 0) {
+                        target.x = 0;
+                        target.vx *= -1;
+                    } else if (target.x >= target.maxX) {
+                        target.x = target.maxX;
+                        target.vx *= -1;
+                    }
+
+                    if (target.y <= 0) {
+                        target.y = 0;
+                        target.vy *= -1;
+                    } else if (target.y >= target.maxY) {
+                        target.y = target.maxY;
+                        target.vy *= -1;
+                    }
+                }
+
+                for (let i = 0; i < activeTargets.length; i++) {
+                    for (let j = i + 1; j < activeTargets.length; j++) {
+                        let t1 = activeTargets[i];
+                        let t2 = activeTargets[j];
+
+                        let c1x = t1.x + TARGET_SIZE / 2;
+                        let c1y = t1.y + TARGET_SIZE / 2;
+                        let c2x = t2.x + TARGET_SIZE / 2;
+                        let c2y = t2.y + TARGET_SIZE / 2;
+
+                        let dx = c2x - c1x;
+                        let dy = c2y - c1y;
+                        let distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < TARGET_SIZE) {
+                            let overlap = TARGET_SIZE - distance;
+                            let nx = dx / distance;
+                            let ny = dy / distance;
+
+                            t1.x -= (nx * overlap / 2);
+                            t1.y -= (ny * overlap / 2);
+                            t2.x += (nx * overlap / 2);
+                            t2.y += (ny * overlap / 2);
+
+                            let dvx = t2.vx - t1.vx;
+                            let dvy = t2.vy - t1.vy;
+                            let velAlongNormal = dvx * nx + dvy * ny;
+
+                            if (velAlongNormal < 0) {
+                                let impulse = -velAlongNormal;
+                                t1.vx -= nx * impulse;
+                                t1.vy -= ny * impulse;
+                                t2.vx += nx * impulse;
+                                t2.vy += ny * impulse;
+                            }
+                        }
+                    }
+                }
+
+                for (let target of activeTargets) {
+                    target.updatePosition();
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+
+        function startSpawning() {
+            if (gallery.clientWidth <= 0) {
+                requestAnimationFrame(startSpawning);
+                return;
+            }
+            if (spawnStarted) {
+                requestAnimationFrame(syncFieldToViewport);
+                return;
+            }
+            spawnStarted = true;
+            maxActiveNumbers = computeMaxActiveNumbers();
+            lastMinDim = galleryMinDim();
+            const spawnDelay = numberLifeTimeMs / Math.max(maxActiveNumbers, 1);
+
+            const spawnInterval = setInterval(() => {
+                maxActiveNumbers = computeMaxActiveNumbers();
+                if (currentView === 'shoot' && activeTargets.length < maxActiveNumbers) {
+                    activeTargets.push(new TargetNumber());
+                } else if (gallery.clientWidth > 0 && activeTargets.length >= maxActiveNumbers) {
+                    clearInterval(spawnInterval);
+                }
+            }, spawnDelay);
+        }
+
+        window.addEventListener('resize', () => {
+            activeTargets.forEach(target => {
+                target.updateBounds();
+                target.x = Math.max(0, Math.min(target.x, target.maxX));
+                target.y = Math.max(0, Math.min(target.y, target.maxY));
+                target.updatePosition();
+            });
+            syncFieldToViewport();
+        });
+
+        document.addEventListener('selectstart', (e) => {
+            if (
+                e.target === contactNameInput ||
+                e.target === authUsername ||
+                e.target === authPassword
+            ) {
+                return;
+            }
+            e.preventDefault();
+        });
+
+        function setStatus(el, message, kind) {
+            el.textContent = message;
+            el.classList.remove('error', 'ok');
+            if (kind) {
+                el.classList.add(kind);
+            }
+        }
+
+        function enterApp(mode, username) {
+            authMode = mode;
+            currentUsername = username || '';
+            guestContacts = [];
+            nextGuestId = 1;
+            phoneNumber = [];
+            renderPhoneDisplay();
+            contactNameInput.value = '';
+            setStatus(saveStatus, '', '');
+            if (mode === 'guest') {
+                userLabel.textContent = 'INVITADO: se pierde al cerrar';
+            } else {
+                userLabel.textContent = 'Usuario: ' + username;
+            }
+            viewLogin.classList.remove('active');
+            appShell.classList.add('visible');
+            showView('shoot');
+            requestAnimationFrame(startSpawning);
+        }
+
+        function clearTargets() {
+            while (activeTargets.length) {
+                activeTargets[activeTargets.length - 1].destroy();
+            }
+            spawnStarted = false;
+            lastMinDim = 0;
+        }
+
+        async function authRequest(path, body) {
+            const response = await fetch(path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body)
+            });
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (err) {
+                data = {};
+            }
+            if (!response.ok) {
+                const detail = data.detail || 'Error de autenticacion';
+                throw new Error(typeof detail === 'string' ? detail : 'Error de autenticacion');
+            }
+            return data;
+        }
+
+        btnRegister.addEventListener('click', async () => {
+            const username = authUsername.value.trim();
+            const password = authPassword.value;
+            if (!username) {
+                setStatus(authStatus, 'El usuario no puede estar vacio.', 'error');
+                return;
+            }
+            try {
+                const user = await authRequest('/register', { username, password });
+                enterApp('user', user.username);
+            } catch (err) {
+                setStatus(authStatus, err.message, 'error');
+            }
+        });
+
+        btnLogin.addEventListener('click', async () => {
+            const username = authUsername.value.trim();
+            const password = authPassword.value;
+            if (!username) {
+                setStatus(authStatus, 'El usuario no puede estar vacio.', 'error');
+                return;
+            }
+            try {
+                const user = await authRequest('/login', { username, password });
+                enterApp('user', user.username);
+            } catch (err) {
+                setStatus(authStatus, err.message, 'error');
+            }
+        });
+
+        btnGuest.addEventListener('click', () => {
+            enterApp('guest', '');
+        });
+
+        btnLogout.addEventListener('click', async () => {
+            if (authMode === 'user') {
+                try {
+                    await fetch('/logout', { method: 'POST', credentials: 'include' });
+                } catch (err) {
+                    /* seguir igual al login */
+                }
+            }
+            clearTargets();
+            guestContacts = [];
+            authMode = null;
+            currentUsername = '';
+            currentView = 'login';
+            appShell.classList.remove('visible');
+            viewLogin.classList.add('active');
+            authPassword.value = '';
+            setStatus(authStatus, '', '');
+        });
+
+        saveButton.addEventListener('click', async () => {
+            const name = contactNameInput.value.trim();
+            const phone = phoneNumber.join('');
+
+            if (!name) {
+                setStatus(saveStatus, 'Falta el nombre.', 'error');
+                return;
+            }
+            if (!phone) {
+                setStatus(saveStatus, 'Caza al menos un digito.', 'error');
+                return;
+            }
+
+            saveButton.disabled = true;
+            setStatus(saveStatus, 'Agendando...', '');
+            try {
+                if (authMode === 'guest') {
+                    guestContacts.unshift({
+                        id: nextGuestId,
+                        name,
+                        phone_number: phone,
+                        created_at: new Date().toISOString()
+                    });
+                    nextGuestId += 1;
+                } else {
+                    const response = await fetch('/contacts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ name, phone_number: phone })
+                    });
+                    if (!response.ok) {
+                        throw new Error('No se pudo guardar');
+                    }
+                }
+                contactNameInput.value = '';
+                phoneNumber = [];
+                renderPhoneDisplay();
+                setStatus(saveStatus, 'Contacto agendado.', 'ok');
+            } catch (err) {
+                setStatus(saveStatus, 'Error al agendar.', 'error');
+            } finally {
+                saveButton.disabled = false;
+            }
+        });
+
+        function renderContacts(contacts) {
+            contactsBody.innerHTML = '';
+            agendaEmpty.hidden = contacts.length > 0;
+            contacts.forEach((contact) => {
+                const row = document.createElement('tr');
+                const created = contact.created_at
+                    ? contact.created_at.replace('T', ' ').slice(0, 19)
+                    : '';
+                row.innerHTML = `
+                    <td>${contact.id}</td>
+                    <td></td>
+                    <td>+${contact.phone_number}</td>
+                    <td>${created}</td>
+                    <td></td>
+                `;
+                row.children[1].textContent = contact.name;
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.type = 'button';
+                deleteBtn.textContent = 'Eliminar';
+                deleteBtn.addEventListener('click', () => deleteContact(contact.id));
+                row.children[4].appendChild(deleteBtn);
+                contactsBody.appendChild(row);
+            });
+        }
+
+        async function loadContacts() {
+            setStatus(agendaStatus, '', '');
+            if (authMode === 'guest') {
+                renderContacts(guestContacts);
+                return;
+            }
+            try {
+                const response = await fetch('/contacts', { credentials: 'include' });
+                if (!response.ok) {
+                    throw new Error('No se pudo listar');
+                }
+                const contacts = await response.json();
+                renderContacts(contacts);
+            } catch (err) {
+                setStatus(agendaStatus, 'Error al cargar la agenda.', 'error');
+            }
+        }
+
+        async function deleteContact(id) {
+            try {
+                if (authMode === 'guest') {
+                    guestContacts = guestContacts.filter((contact) => contact.id !== id);
+                    renderContacts(guestContacts);
+                    return;
+                }
+                const response = await fetch(`/contacts/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                if (!response.ok && response.status !== 204) {
+                    throw new Error('No se pudo eliminar');
+                }
+                await loadContacts();
+            } catch (err) {
+                setStatus(agendaStatus, 'Error al eliminar.', 'error');
+            }
+        }
+
+        async function restoreSession() {
+            try {
+                const response = await fetch('/me', { credentials: 'include' });
+                if (!response.ok) {
+                    return;
+                }
+                const user = await response.json();
+                enterApp('user', user.username);
+            } catch (err) {
+                /* quedarse en login */
+            }
+        }
+
+        restoreSession();
+    </script>
+</body>
+</html>
