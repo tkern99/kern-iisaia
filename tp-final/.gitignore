@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+contacts.db
+.cursor/
+debug-*.log
+
+node_modules/
+dist/
+.env
+backend/db/*.db
+backend/db/*.sqlite
+.DS_Store

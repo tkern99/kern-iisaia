@@ -1,0 +1,45 @@
+:root {
+  --bg-primary:   #0E1117;
+  --bg-secondary: #161B22;
+  --bg-canvas:    #000000;
+  --bg-panel:     #1C2333;
+
+  --accent:       #00D9A0;
+  --accent-hover: #00FFB8;
+
+  --text-primary:   #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-dim:       #484F58;
+
+  --border:         rgba(255,255,255,0.08);
+  --border-accent:  rgba(0,217,160,0.5);
+
+  --font-ui:   'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-ui);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}

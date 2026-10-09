@@ -1,0 +1,30 @@
+.toolbar {
+  height: 40px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+}
+
+.tool-btn {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+}
+
+.tool-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tool-btn.active {
+  background-color: rgba(0, 217, 160, 0.1);
+  color: var(--accent);
+  border-color: var(--border-accent);
+}

@@ -1,0 +1,32 @@
+import React from 'react';
+import { useToolStore } from '../../store/useToolStore';
+import './Toolbar.css';
+
+export default function Toolbar() {
+  const { activeTool, setActiveTool } = useToolStore();
+
+  const tools = [
+    { id: 'select', label: 'Selección (S)' },
+    { id: 'rect', label: 'Rectángulo (R)' },
+    { id: 'poly', label: 'Polígono (P)' },
+    { id: 'path', label: 'Path/Wire (W)' },
+    { id: 'via', label: 'Via/Contact (V)' },
+    { id: 'ruler', label: 'Regla (M)' },
+    { id: 'probe', label: 'Net Tracer (N)' },
+    { id: 'instance', label: 'Instancia' },
+  ];
+
+  return (
+    <div className="toolbar">
+      {tools.map(tool => (
+        <button 
+          key={tool.id} 
+          className={`tool-btn ${activeTool === tool.id ? 'active' : ''}`}
+          onClick={() => setActiveTool(tool.id)}
+        >
+          {tool.label}
+        </button>
+      ))}
+    </div>
+  );
+}
