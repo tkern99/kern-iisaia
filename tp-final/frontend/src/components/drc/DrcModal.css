@@ -1,0 +1,269 @@
+.drc-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.drc-modal {
+  background: #1a1a2e;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  width: 720px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.drc-modal-header {
+  padding: 16px 24px;
+  background: linear-gradient(90deg, #7c2d12, #431407);
+  border-bottom: 1px solid #7c2d12;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drc-title-group h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #fed7aa;
+  letter-spacing: 0.03em;
+}
+
+.drc-subtitle {
+  font-size: 0.75rem;
+  color: #fdba74;
+  opacity: 0.85;
+}
+
+.drc-close {
+  background: none;
+  border: none;
+  color: #fdba74;
+  font-size: 1.6rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.drc-close:hover {
+  color: #fff;
+}
+
+.drc-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.drc-section-label {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.drc-ruledeck-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #16213e;
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+.drc-ruledeck-info h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  color: #e2e8f0;
+}
+
+.drc-ruledeck-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.drc-badge {
+  font-size: 0.72rem;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #ea580c;
+  color: #fff;
+}
+
+.drc-actions-row {
+  display: flex;
+  gap: 10px;
+}
+
+.drc-run-btn {
+  flex: 1;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #ea580c, #c2410c);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: opacity 0.15s;
+}
+.drc-run-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.drc-run-btn:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+.drc-clear-btn {
+  padding: 12px 18px;
+  background: #334155;
+  color: #cbd5e1;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.drc-clear-btn:hover {
+  background: #475569;
+  color: #fff;
+}
+
+/* Report Section */
+.drc-report {
+  border-radius: 8px;
+  border: 1px solid #334155;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.drc-report-banner {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.05rem;
+  font-weight: bold;
+}
+.drc-report-banner.pass {
+  background: #052e16;
+  color: #4ade80;
+  border-bottom: 1px solid #166534;
+}
+.drc-report-banner.fail {
+  background: #2d0a0a;
+  color: #f87171;
+  border-bottom: 1px solid #7f1d1d;
+}
+
+.drc-report-icon {
+  font-size: 1.5rem;
+}
+
+.drc-stats-bar {
+  display: flex;
+  background: #0f172a;
+  padding: 8px 16px;
+  border-bottom: 1px solid #1e293b;
+  font-size: 0.8rem;
+  gap: 20px;
+  color: #94a3b8;
+}
+.drc-stats-bar strong {
+  color: #e2e8f0;
+}
+
+/* Violations list */
+.drc-violations-list {
+  background: #0d1117;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.drc-violation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1e293b;
+  gap: 12px;
+}
+.drc-violation-item:hover {
+  background: rgba(234, 88, 12, 0.08);
+}
+
+.drc-violation-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.drc-violation-code {
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #7f1d1d;
+  color: #fecaca;
+  white-space: nowrap;
+}
+
+.drc-violation-msg {
+  font-size: 0.82rem;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drc-violation-layer {
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+/* Terminal log */
+.drc-report-body {
+  padding: 14px 18px;
+  background: #0b0f19;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  max-height: 220px;
+  overflow-y: auto;
+  border-top: 1px solid #1e293b;
+}
+
+.drc-report-body .detail-line {
+  white-space: pre;
+}
+.drc-report-body .detail-line.error   { color: #f87171; }
+.drc-report-body .detail-line.warn    { color: #fbbf24; }
+.drc-report-body .detail-line.pass    { color: #4ade80; }
+.drc-report-body .detail-line.section { color: #fdba74; font-weight: bold; margin-top: 6px; }

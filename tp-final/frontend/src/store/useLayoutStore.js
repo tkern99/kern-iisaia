@@ -7,11 +7,20 @@ export const useLayoutStore = create((set) => ({
   activeLayer: 'Metal1',
   libraryCells: [],
   activeInstance: null,
+  projectName: 'mi_inversor',
+  fitViewTrigger: 0,
+  libraryRefreshTrigger: 0,
+  drcViolations: [],
   
   // Layer visibility and lock state
   layersState: {}, // { Nwell: { visible: true, locked: false }, ... }
   
   // Actions
+  setProjectName: (name) => set({ projectName: name }),
+  triggerFitView: () => set((state) => ({ fitViewTrigger: state.fitViewTrigger + 1 })),
+  triggerLibraryRefresh: () => set((state) => ({ libraryRefreshTrigger: state.libraryRefreshTrigger + 1 })),
+  setDrcViolations: (violations) => set({ drcViolations: violations }),
+  clearDrcViolations: () => set({ drcViolations: [] }),
   setLibraryCells: (cells) => set({ libraryCells: cells }),
   setActiveInstance: (instance) => set({ activeInstance: instance }),
   setLayersState: (newState) => set({ layersState: newState }),
@@ -76,6 +85,13 @@ export const useLayoutStore = create((set) => ({
     };
   }),
   
-  // Entire load
-  loadProject: (shapes) => set({ shapes, selectedShapeIds: [], history: [] })
+  // Entire load: updates shapes, triggers fit view, and optionally updates project name
+  loadProject: (shapes, name) => set((state) => ({
+    shapes: Array.isArray(shapes) ? shapes : [],
+    selectedShapeIds: [],
+    history: [],
+    drcViolations: [],
+    fitViewTrigger: state.fitViewTrigger + 1,
+    ...(name ? { projectName: name } : {})
+  }))
 }));

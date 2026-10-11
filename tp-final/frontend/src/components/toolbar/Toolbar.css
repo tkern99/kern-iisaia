@@ -28,3 +28,15 @@
   color: var(--accent);
   border-color: var(--border-accent);
 }
+
+.tool-btn.action-btn {
+  border-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.03);
+  margin-left: auto;
+}
+
+.tool-btn.action-btn:hover {
+  background-color: rgba(0, 162, 255, 0.15);
+  border-color: #00a2ff;
+  color: #fff;
+}

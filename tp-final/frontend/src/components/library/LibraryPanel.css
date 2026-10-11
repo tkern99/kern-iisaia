@@ -71,6 +71,39 @@
   flex-shrink: 0;
 }
 
+.library-item .custom-badge {
+  background-color: #0284c7;
+  color: #fff;
+}
+
+.library-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.load-to-canvas-btn {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.library-item:hover .load-to-canvas-btn {
+  opacity: 0.95;
+}
+
+.load-to-canvas-btn:hover {
+  background-color: rgba(56, 189, 248, 0.2);
+  transform: scale(1.15);
+  opacity: 1 !important;
+}
+
 .delete-instance-btn {
   background: transparent;
   border: none;
@@ -83,7 +116,7 @@
   justify-content: center;
   opacity: 0.5;
   transition: all 0.15s ease;
-  margin-left: 6px;
+  margin-left: 2px;
   flex-shrink: 0;
 }
 
@@ -96,4 +129,5 @@
   color: #f87171 !important;
   opacity: 1 !important;
 }
+
 

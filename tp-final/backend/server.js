@@ -30,7 +30,6 @@ const projectCount = db.prepare("SELECT COUNT(*) as c FROM projects").get().c;
 if (projectCount === 0) {
   try {
     const stdCellsContent = fs.readFileSync(path.join(__dirname, '../frontend/src/data/standardCells.js'), 'utf8');
-    // Extract the array using Function constructor since it's JS, not strict JSON
     const extractArray = new Function(`
       ${stdCellsContent.replace('export const standardCells', 'const standardCells')}
       return standardCells;
@@ -43,7 +42,7 @@ if (projectCount === 0) {
     db.transaction(() => {
       for (const cell of cells) {
         const info = insertProj.run(1, cell.name, cell.description || '');
-        insertVer.run(info.lastInsertRowid, "Initial seed", JSON.stringify(cell.shapes));
+        insertVer.run(info.lastInsertRowid, 'Initial seed', JSON.stringify(cell.shapes));
       }
     })();
     console.log("Seeded database with default standard cells.");
@@ -51,6 +50,7 @@ if (projectCount === 0) {
     console.error("Failed to seed standard cells:", err);
   }
 }
+
 
 // Routes
 const authRoutes = require('./routes/auth');

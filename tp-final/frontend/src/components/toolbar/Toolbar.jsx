@@ -1,9 +1,11 @@
 import React from 'react';
 import { useToolStore } from '../../store/useToolStore';
+import { useLayoutStore } from '../../store/useLayoutStore';
 import './Toolbar.css';
 
 export default function Toolbar() {
   const { activeTool, setActiveTool } = useToolStore();
+  const { triggerFitView } = useLayoutStore();
 
   const tools = [
     { id: 'select', label: 'Selección (S)' },
@@ -15,15 +17,25 @@ export default function Toolbar() {
     { id: 'ruler', label: 'Regla (D)' },
     { id: 'probe', label: 'Net Tracer (N)' },
     { id: 'instance', label: 'Instancia' },
+    { id: 'fit', label: 'Ajustar (F)', isAction: true },
   ];
+
+  const handleToolClick = (tool) => {
+    if (tool.isAction && tool.id === 'fit') {
+      triggerFitView();
+    } else {
+      setActiveTool(tool.id);
+    }
+  };
 
   return (
     <div className="toolbar">
       {tools.map(tool => (
         <button 
           key={tool.id} 
-          className={`tool-btn ${activeTool === tool.id ? 'active' : ''}`}
-          onClick={() => setActiveTool(tool.id)}
+          className={`tool-btn ${activeTool === tool.id ? 'active' : ''} ${tool.isAction ? 'action-btn' : ''}`}
+          onClick={() => handleToolClick(tool)}
+          title={tool.id === 'fit' ? 'Ajustar y centrar todas las geometrías en la vista (Tecla F)' : tool.label}
         >
           {tool.label}
         </button>

@@ -42,6 +42,17 @@ button {
   font-weight: 500;
 }
 
+.btn-drc {
+  background-color: #ea580c;
+  color: #fff;
+  border: none;
+  font-weight: 500;
+}
+
+.btn-drc:hover {
+  background-color: #f97316;
+}
+
 .btn-lvs {
   background-color: #1d4ed8;
   color: #fff;
@@ -52,3 +63,15 @@ button {
 .btn-lvs:hover {
   background-color: #2563eb;
 }
+
+.btn-versions {
+  background-color: #0f766e;
+  color: #fff;
+  border: none;
+  font-weight: 500;
+}
+
+.btn-versions:hover {
+  background-color: #0d9488;
+}
+

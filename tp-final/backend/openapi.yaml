@@ -1,0 +1,346 @@
+openapi: 3.1.0
+info:
+  title: Educational Layout Simulator API (GPDK045 & skywater130)
+  version: 1.0.0
+  description: API REST para el simulador de layout educativo (gestión de PDKs GPDK045, jerarquías de layout y control de versiones con checkout/checkin).
+servers:
+  - url: http://localhost:3001/api
+paths:
+  /pdks:
+    get:
+      summary: Listar todos los PDKs (incluyendo 'GPDK045' y personalizados)
+      responses:
+        '200':
+          description: Lista de PDKs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pdk'
+        '401':
+          description: No autorizado
+    post:
+      summary: Crear un PDK personalizado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - drc_rules
+              properties:
+                name:
+                  type: string
+                drc_rules:
+                  type: object
+                is_custom:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: PDK creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pdk'
+        '400':
+          description: Datos de entrada inválidos
+        '401':
+          description: No autorizado
+
+  /layouts:
+    get:
+      summary: Listar todos los layouts
+      responses:
+        '200':
+          description: Lista de layouts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Layout'
+        '401':
+          description: No autorizado
+    post:
+      summary: Crear un nuevo layout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - pdk_id
+              properties:
+                name:
+                  type: string
+                pdk_id:
+                  type: integer
+      responses:
+        '201':
+          description: Layout creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Layout'
+        '401':
+          description: No autorizado
+
+  /layouts/{id}:
+    get:
+      summary: Obtener detalles de un layout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detalles del layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Layout'
+        '404':
+          description: Layout no encontrado
+    delete:
+      summary: Eliminar layout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Layout eliminado exitosamente
+        '404':
+          description: Layout no encontrado
+
+  /layouts/{id}/checkout:
+    post:
+      summary: Bloquear el layout para edición (checkout)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Layout bloqueado exitosamente
+        '401':
+          description: No autorizado
+        '409':
+          description: Conflicto - El layout ya está checked out por otro usuario
+
+  /layouts/{id}/versions:
+    post:
+      summary: Guardar un nuevo estado del layout (check-in)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+                  description: JSON con las coordenadas y capas del layout
+      responses:
+        '201':
+          description: Nueva versión guardada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  version_number:
+                    type: integer
+                  layout_id:
+                    type: integer
+        '400':
+          description: Datos inválidos o falla de validación DRC
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "DRC violations found"
+                  details:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          description: No autorizado
+        '404':
+          description: Layout no encontrado
+        '409':
+          description: Conflicto - Versión concurrente
+    get:
+      summary: Obtener historial de versiones de un layout (para actualizar el workarea)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de versiones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Version'
+        '401':
+          description: No autorizado
+
+  /layouts/{id}/instances:
+    post:
+      summary: Instanciar un layout hijo dentro de un layout padre (para jerarquías)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del layout padre
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - child_layout_id
+                - x_pos
+                - y_pos
+              properties:
+                child_layout_id:
+                  type: integer
+                x_pos:
+                  type: number
+                y_pos:
+                  type: number
+      responses:
+        '201':
+          description: Instancia creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Datos inválidos o el layout hijo generaría una dependencia circular
+        '401':
+          description: No autorizado
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+      required:
+        - id
+        - email
+
+    Pdk:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        drc_rules:
+          type: object
+          description: JSON representando las reglas DRC GPDK045
+        is_custom:
+          type: boolean
+      required:
+        - id
+        - name
+        - drc_rules
+
+    Layout:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        pdk_id:
+          type: integer
+        is_checked_out:
+          type: boolean
+      required:
+        - id
+        - name
+        - pdk_id
+
+    Version:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        layout_id:
+          type: integer
+        version_number:
+          type: integer
+        data:
+          type: object
+          description: JSON del layout
+      required:
+        - id
+        - layout_id
+        - version_number
+        - data
+
+    Instance:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        parent_layout_id:
+          type: integer
+        child_layout_id:
+          type: integer
+        x_pos:
+          type: number
+          format: float
+        y_pos:
+          type: number
+          format: float
+      required:
+        - id
+        - parent_layout_id
+        - child_layout_id
+        - x_pos
+        - y_pos

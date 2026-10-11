@@ -8,7 +8,7 @@ import { getStipplePattern } from '../../utils/stipplePatterns';
 import './LayoutCanvas.css';
 
 export default function LayoutCanvas() {
-  const { shapes, activeLayer, activeInstance, setActiveInstance, addShape, addShapes, updateShape, moveShapes, layersState, selectedShapeIds, setSelection, clearSelection, deleteShapes, undo } = useLayoutStore();
+  const { shapes, activeLayer, activeInstance, setActiveInstance, addShape, addShapes, updateShape, moveShapes, layersState, selectedShapeIds, setSelection, clearSelection, deleteShapes, undo, fitViewTrigger, drcViolations } = useLayoutStore();
   const { activeTool, snapGrid, setActiveTool } = useToolStore();
   
   const [scale, setScale] = useState(1000); // 1 um = 1000 px initial zoom
@@ -139,12 +139,66 @@ export default function LayoutCanvas() {
     });
   };
 
+  const fitToView = (shapesToFit = shapes) => {
+    if (!shapesToFit || shapesToFit.length === 0) {
+      setPosition({ x: dimensions.width / 2, y: dimensions.height / 2 });
+      setScale(1000);
+      return;
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    shapesToFit.forEach(s => {
+      const w = s.width || 0;
+      const h = s.height || 0;
+      const x1 = Math.min(s.x, s.x + w);
+      const x2 = Math.max(s.x, s.x + w);
+      const y1 = Math.min(s.y, s.y + h);
+      const y2 = Math.max(s.y, s.y + h);
+      if (x1 < minX) minX = x1;
+      if (y1 < minY) minY = y1;
+      if (x2 > maxX) maxX = x2;
+      if (y2 > maxY) maxY = y2;
+    });
+
+    if (!isFinite(minX) || !isFinite(maxX)) return;
+
+    const designWidth = maxX - minX;
+    const designHeight = maxY - minY;
+    const padding = 80;
+    const availWidth = Math.max(dimensions.width - padding * 2, 100);
+    const availHeight = Math.max(dimensions.height - padding * 2, 100);
+
+    let newScale = 1000;
+    if (designWidth > 0 && designHeight > 0) {
+      const scaleX = availWidth / designWidth;
+      const scaleY = availHeight / designHeight;
+      newScale = Math.min(scaleX, scaleY);
+      newScale = Math.max(100, Math.min(newScale, 5000));
+    }
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    setPosition({
+      x: Math.round(dimensions.width / 2 - centerX * newScale),
+      y: Math.round(dimensions.height / 2 - centerY * newScale)
+    });
+    setScale(newScale);
+  };
+
+  useEffect(() => {
+    if (fitViewTrigger > 0 && shapes.length > 0) {
+      fitToView(shapes);
+    }
+  }, [fitViewTrigger]);
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
       switch(e.key.toLowerCase()) {
+        case 'f': fitToView(shapes); break;
         case 's': setActiveTool('select'); break;
         case 'r': setActiveTool('rect'); break;
         case 'p': setActiveTool('poly'); break;
@@ -213,7 +267,7 @@ export default function LayoutCanvas() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setActiveTool, setActiveInstance, selectedShapeIds, deleteShapes, moveShapes, clearSelection, undo, activeTool, draftPath, snapGrid]);
+  }, [setActiveTool, setActiveInstance, selectedShapeIds, deleteShapes, moveShapes, clearSelection, undo, activeTool, draftPath, snapGrid, shapes]);
 
   // Wheel to zoom
   const handleWheel = (e) => {
@@ -947,6 +1001,44 @@ export default function LayoutCanvas() {
               </Group>
             );
           })()}
+
+          {/* Marcadores de Violaciones DRC en Canvas */}
+          {drcViolations && drcViolations.map((v, vIdx) => {
+            if (!v.bbox) return null;
+            return (
+              <Group key={`drc-marker-${v.id || vIdx}`}>
+                <Rect
+                  x={v.bbox.x}
+                  y={v.bbox.y}
+                  width={v.bbox.width}
+                  height={v.bbox.height}
+                  fill="rgba(239, 68, 68, 0.28)"
+                  stroke="#ef4444"
+                  strokeWidth={2 / scale}
+                  dash={[4 / scale, 3 / scale]}
+                />
+                <Group
+                  x={v.bbox.x + v.bbox.width / 2}
+                  y={v.bbox.y - 12 / scale}
+                  scaleX={1 / scale}
+                  scaleY={1 / scale}
+                >
+                  <Text
+                    text={`⚠️ ${v.ruleCode}`}
+                    fontSize={11}
+                    fill="#fecaca"
+                    fontFamily="monospace"
+                    fontStyle="bold"
+                    align="center"
+                    offsetX={30}
+                    offsetY={6}
+                    shadowColor="#000"
+                    shadowBlur={4}
+                  />
+                </Group>
+              </Group>
+            );
+          })}
         </Layer>
       </Stage>
     </div>
