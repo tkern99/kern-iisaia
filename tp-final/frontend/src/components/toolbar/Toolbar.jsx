@@ -11,7 +11,8 @@ export default function Toolbar() {
     { id: 'poly', label: 'Polígono (P)' },
     { id: 'path', label: 'Path/Wire (W)' },
     { id: 'via', label: 'Via/Contact (V)' },
-    { id: 'ruler', label: 'Regla (M)' },
+    { id: 'move', label: 'Desplazar (M)' },
+    { id: 'ruler', label: 'Regla (D)' },
     { id: 'probe', label: 'Net Tracer (N)' },
     { id: 'instance', label: 'Instancia' },
   ];

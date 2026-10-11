@@ -47,6 +47,17 @@ export const useLayoutStore = create((set) => ({
     history: [...state.history, state.shapes].slice(-50),
     shapes: state.shapes.map(s => s.id === id ? { ...s, ...newProps } : s)
   })),
+  moveShapes: (ids, dx, dy) => set((state) => ({
+    history: [...state.history, state.shapes].slice(-50),
+    shapes: state.shapes.map(s => {
+      if (!ids.includes(s.id)) return s;
+      return {
+        ...s,
+        x: Math.round((s.x + dx) * 10000) / 10000,
+        y: Math.round((s.y + dy) * 10000) / 10000
+      };
+    })
+  })),
   deleteShapes: (ids) => set((state) => ({
     history: [...state.history, state.shapes].slice(-50),
     shapes: state.shapes.filter(s => !ids.includes(s.id)),

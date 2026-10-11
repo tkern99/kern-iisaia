@@ -8,7 +8,7 @@ import { getStipplePattern } from '../../utils/stipplePatterns';
 import './LayoutCanvas.css';
 
 export default function LayoutCanvas() {
-  const { shapes, activeLayer, activeInstance, setActiveInstance, addShape, addShapes, layersState, selectedShapeIds, setSelection, clearSelection, deleteShapes, undo } = useLayoutStore();
+  const { shapes, activeLayer, activeInstance, setActiveInstance, addShape, addShapes, updateShape, moveShapes, layersState, selectedShapeIds, setSelection, clearSelection, deleteShapes, undo } = useLayoutStore();
   const { activeTool, snapGrid, setActiveTool } = useToolStore();
   
   const [scale, setScale] = useState(1000); // 1 um = 1000 px initial zoom
@@ -22,6 +22,7 @@ export default function LayoutCanvas() {
   const [currentPointer, setCurrentPointer] = useState({ x: 0, y: 0 });
   const [previewInstance, setPreviewInstance] = useState(null);
   const [probedNets, setProbedNets] = useState([]);
+  const [moveState, setMoveState] = useState(null); // { origin: {x,y}, current: {x,y}, isDragging: bool }
 
   const getLayerWidth = (layerId) => {
     if (layerId === 'Metal1') return 0.065;
@@ -49,10 +50,23 @@ export default function LayoutCanvas() {
   }, []);
 
   useEffect(() => {
+    if (containerRef.current) {
+      if (activeTool === 'move') {
+        containerRef.current.style.cursor = 'move';
+      } else if (activeTool === 'select') {
+        containerRef.current.style.cursor = 'default';
+      } else {
+        containerRef.current.style.cursor = 'crosshair';
+      }
+    }
+  }, [activeTool]);
+
+  useEffect(() => {
     if (activeTool !== 'via') setPreviewVias([]);
     if (activeTool !== 'path') setDraftPath(null);
     if (activeTool !== 'instance') setPreviewInstance(null);
     if (activeTool !== 'probe') setProbedNets([]);
+    if (activeTool !== 'move') setMoveState(null);
   }, [activeTool]);
 
   const commitPath = (path) => {
@@ -136,9 +150,38 @@ export default function LayoutCanvas() {
         case 'p': setActiveTool('poly'); break;
         case 'w': setActiveTool('path'); break;
         case 'v': setActiveTool('via'); break;
-        case 'm': setActiveTool('ruler'); break;
+        case 'd': setActiveTool('ruler'); break;
+        case 'm': setActiveTool('move'); break;
         case 'n': setActiveTool('probe'); break;
         case 'u': undo(); break;
+        case 'arrowleft':
+          if (selectedShapeIds.length > 0) {
+            e.preventDefault();
+            const step = e.shiftKey ? snapGrid * 10 : snapGrid;
+            moveShapes(selectedShapeIds, -step, 0);
+          }
+          break;
+        case 'arrowright':
+          if (selectedShapeIds.length > 0) {
+            e.preventDefault();
+            const step = e.shiftKey ? snapGrid * 10 : snapGrid;
+            moveShapes(selectedShapeIds, step, 0);
+          }
+          break;
+        case 'arrowup':
+          if (selectedShapeIds.length > 0) {
+            e.preventDefault();
+            const step = e.shiftKey ? snapGrid * 10 : snapGrid;
+            moveShapes(selectedShapeIds, 0, -step);
+          }
+          break;
+        case 'arrowdown':
+          if (selectedShapeIds.length > 0) {
+            e.preventDefault();
+            const step = e.shiftKey ? snapGrid * 10 : snapGrid;
+            moveShapes(selectedShapeIds, 0, step);
+          }
+          break;
         case 'delete':
         case 'backspace':
           if (selectedShapeIds.length > 0) deleteShapes(selectedShapeIds);
@@ -154,6 +197,7 @@ export default function LayoutCanvas() {
           setActiveTool('select');
           setActiveInstance(null);
           setPreviewInstance(null);
+          setMoveState(null);
           setDraftPath(null);
           setDraftShape(null);
           setIsDrawing(false);
@@ -169,7 +213,7 @@ export default function LayoutCanvas() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setActiveTool, setActiveInstance, selectedShapeIds, deleteShapes, clearSelection, undo, activeTool, draftPath]);
+  }, [setActiveTool, setActiveInstance, selectedShapeIds, deleteShapes, moveShapes, clearSelection, undo, activeTool, draftPath, snapGrid]);
 
   // Wheel to zoom
   const handleWheel = (e) => {
@@ -219,6 +263,39 @@ export default function LayoutCanvas() {
         if (!e.evt.shiftKey) {
           clearSelection();
         }
+      }
+      return;
+    }
+
+    if (activeTool === 'move') {
+      const pos = getSnappedPointerPosition();
+      if (!moveState) {
+        // If no shapes currently selected, try to select the shape under cursor
+        if (selectedShapeIds.length === 0) {
+          let clickedShape = null;
+          for (let i = shapes.length - 1; i >= 0; i--) {
+            const s = shapes[i];
+            if (layersState[s.layerId]?.visible !== false &&
+                pos.x >= s.x && pos.x <= s.x + s.width &&
+                pos.y >= s.y && pos.y <= s.y + s.height) {
+              clickedShape = s;
+              break;
+            }
+          }
+          if (clickedShape) {
+            setSelection([clickedShape.id]);
+          }
+        }
+        setMoveState({ origin: pos, current: pos, isDragging: true });
+      } else {
+        // Second click: commit movement
+        const dx = Math.round((pos.x - moveState.origin.x) / snapGrid) * snapGrid;
+        const dy = Math.round((pos.y - moveState.origin.y) / snapGrid) * snapGrid;
+        if ((dx !== 0 || dy !== 0) && selectedShapeIds.length > 0) {
+          moveShapes(selectedShapeIds, dx, dy);
+        }
+        setMoveState(null);
+        setActiveTool('select');
       }
       return;
     }
@@ -390,6 +467,12 @@ export default function LayoutCanvas() {
   };
 
   const handleMouseMove = (e) => {
+    if (activeTool === 'move' && moveState) {
+      const pos = getSnappedPointerPosition();
+      setMoveState(prev => prev ? { ...prev, current: pos } : null);
+      return;
+    }
+
     if (activeTool === 'instance' && activeInstance) {
       const pos = getSnappedPointerPosition();
       setPreviewInstance({ x: pos.x, y: pos.y });
@@ -448,6 +531,24 @@ export default function LayoutCanvas() {
   };
 
   const handleMouseUp = (e) => {
+    if (activeTool === 'move' && moveState?.isDragging) {
+      const pos = getSnappedPointerPosition();
+      const dx = Math.round((pos.x - moveState.origin.x) / snapGrid) * snapGrid;
+      const dy = Math.round((pos.y - moveState.origin.y) / snapGrid) * snapGrid;
+      if (dx !== 0 || dy !== 0) {
+        if (selectedShapeIds.length > 0) {
+          moveShapes(selectedShapeIds, dx, dy);
+        }
+        setMoveState(null);
+        setActiveTool('select');
+        return;
+      } else {
+        // Just a click without drag, keep moveState active for click-to-place
+        setMoveState(prev => prev ? { ...prev, isDragging: false } : null);
+        return;
+      }
+    }
+
     if (activeTool === 'ruler' && rulerState.active) {
       setRulerState(prev => ({ ...prev, active: false }));
       return;
@@ -605,7 +706,7 @@ export default function LayoutCanvas() {
                 fillPatternRepeat="repeat"
                 fillPatternScaleX={1 / scale}
                 fillPatternScaleY={1 / scale}
-                opacity={isSelected ? 0.9 : 0.7}
+                opacity={isSelected ? (activeTool === 'move' && moveState ? 0.35 : 0.9) : 0.7}
                 stroke={isSelected ? '#ffffff' : (layerInfo ? layerInfo.color : 'white')}
                 strokeWidth={isSelected ? 3 / scale : 1 / scale}
                 onClick={(e) => {
@@ -786,6 +887,66 @@ export default function LayoutCanvas() {
               </Group>
             </Group>
           )}
+
+          {/* Move Tool Preview */}
+          {activeTool === 'move' && moveState && selectedShapeIds.length > 0 && (() => {
+            const dx = Math.round((moveState.current.x - moveState.origin.x) / snapGrid) * snapGrid;
+            const dy = Math.round((moveState.current.y - moveState.origin.y) / snapGrid) * snapGrid;
+            const selectedShapes = shapes.filter(s => selectedShapeIds.includes(s.id));
+            return (
+              <Group>
+                {/* Reference line connecting origin to current pointer */}
+                <Line
+                  points={[moveState.origin.x, moveState.origin.y, moveState.current.x, moveState.current.y]}
+                  stroke="#00FFCC"
+                  strokeWidth={1.5 / scale}
+                  dash={[4 / scale, 4 / scale]}
+                />
+                
+                {/* Distance / Delta badge */}
+                <Group x={moveState.current.x} y={moveState.current.y} scaleX={1 / scale} scaleY={1 / scale}>
+                  <Rect
+                    x={10}
+                    y={-28}
+                    width={170}
+                    height={22}
+                    fill="#15171e"
+                    stroke="#00FFCC"
+                    strokeWidth={1.5}
+                    cornerRadius={4}
+                    opacity={0.92}
+                  />
+                  <Text
+                    x={16}
+                    y={-23}
+                    text={`ΔX: ${dx >= 0 ? '+' : ''}${dx.toFixed(3)}  ΔY: ${dy >= 0 ? '+' : ''}${dy.toFixed(3)} μm`}
+                    fill="#00FFCC"
+                    fontSize={11}
+                    fontFamily="monospace"
+                    fontStyle="bold"
+                  />
+                </Group>
+
+                {/* Ghost preview of moved shapes */}
+                {selectedShapes.map(s => {
+                  const layerInfo = GPDK045_LAYERS.find(l => l.id === s.layerId);
+                  return (
+                    <Rect
+                      key={`move-ghost-${s.id}`}
+                      x={s.x + dx}
+                      y={s.y + dy}
+                      width={s.width}
+                      height={s.height}
+                      fill={layerInfo ? layerInfo.color + '55' : 'rgba(0, 255, 204, 0.3)'}
+                      stroke="#00FFCC"
+                      strokeWidth={2 / scale}
+                      dash={[4 / scale, 3 / scale]}
+                    />
+                  );
+                })}
+              </Group>
+            );
+          })()}
         </Layer>
       </Stage>
     </div>
