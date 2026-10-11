@@ -10,4 +10,8 @@ dist/
 .env
 backend/db/*.db
 backend/db/*.sqlite
+*.db
+*.sqlite
+output.txt
 .DS_Store
+

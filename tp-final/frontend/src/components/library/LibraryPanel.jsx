@@ -45,6 +45,39 @@ export default function LibraryPanel() {
     setActiveTool('instance');
   };
 
+  const handleDelete = async (e, cell) => {
+    e.stopPropagation();
+
+    const isCustom = !cell.isLibrary;
+    const confirmMsg = isCustom
+      ? `¿Eliminar la instancia "${cell.name}"? Se borrará el proyecto guardado.`
+      : `¿Eliminar la instancia "${cell.name}" de la lista?`;
+
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    if (isCustom && cell.id) {
+      try {
+        const res = await fetch(`http://localhost:3001/api/projects/${cell.id}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) {
+          console.error('Error al eliminar proyecto del servidor');
+        }
+      } catch (err) {
+        console.error('Error de red al eliminar proyecto:', err);
+      }
+    }
+
+    setLibraryCells(libraryCells.filter(c => c.id !== cell.id));
+
+    if (activeInstance?.id === cell.id) {
+      setActiveInstance(null);
+      setActiveTool('select');
+    }
+  };
+
   return (
     <div className="library-panel">
       <div className="panel-header">Library / Instances</div>
@@ -55,8 +88,22 @@ export default function LibraryPanel() {
             className={`library-item ${activeInstance?.id === cell.id ? 'active' : ''}`}
             onClick={() => handleSelect(cell)}
           >
-            <span>{cell.name}</span>
-            {cell.isLibrary && <span className="badge">PDK</span>}
+            <div className="library-item-info">
+              <span className="library-item-name" title={cell.name}>{cell.name}</span>
+              {cell.isLibrary && <span className="badge">PDK</span>}
+            </div>
+            <button
+              className="delete-instance-btn"
+              title={`Eliminar instancia ${cell.name}`}
+              onClick={(e) => handleDelete(e, cell)}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+            </button>
           </div>
         ))}
       </div>

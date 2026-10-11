@@ -55,4 +55,23 @@ router.get('/:id/versions/:versionId', (req, res) => {
   res.json(version);
 });
 
+// Delete project and all its versions
+router.delete('/:id', (req, res) => {
+  const projectId = req.params.id;
+  try {
+    const deleteVersions = db.prepare('DELETE FROM versions WHERE project_id = ?');
+    const deleteProject = db.prepare('DELETE FROM projects WHERE id = ?');
+
+    db.transaction(() => {
+      deleteVersions.run(projectId);
+      deleteProject.run(projectId);
+    })();
+
+    res.json({ success: true, id: projectId });
+  } catch (err) {
+    console.error('Error al eliminar proyecto:', err);
+    res.status(500).json({ error: 'Error al eliminar el proyecto' });
+  }
+});
+
 module.exports = router;

@@ -8,7 +8,7 @@ import { getStipplePattern } from '../../utils/stipplePatterns';
 import './LayoutCanvas.css';
 
 export default function LayoutCanvas() {
-  const { shapes, activeLayer, activeInstance, addShape, addShapes, layersState, selectedShapeIds, setSelection, clearSelection, deleteShapes, undo } = useLayoutStore();
+  const { shapes, activeLayer, activeInstance, setActiveInstance, addShape, addShapes, layersState, selectedShapeIds, setSelection, clearSelection, deleteShapes, undo } = useLayoutStore();
   const { activeTool, snapGrid, setActiveTool } = useToolStore();
   
   const [scale, setScale] = useState(1000); // 1 um = 1000 px initial zoom
@@ -143,14 +143,25 @@ export default function LayoutCanvas() {
         case 'backspace':
           if (selectedShapeIds.length > 0) deleteShapes(selectedShapeIds);
           break;
-        case 'escape':
-          if (draftPath) {
+        case 'enter':
+          if (activeTool === 'path' && draftPath) {
             commitPath(draftPath);
             setDraftPath(null);
-          } else {
-            clearSelection();
-            setRulerState(prev => ({ ...prev, visible: false }));
           }
+          break;
+        case 'escape':
+          // Exit whatever mode/tool is active and return to select mode (default mode)
+          setActiveTool('select');
+          setActiveInstance(null);
+          setPreviewInstance(null);
+          setDraftPath(null);
+          setDraftShape(null);
+          setIsDrawing(false);
+          setPreviewVias([]);
+          setProbedNets([]);
+          setRulerState({ startX: 0, startY: 0, endX: 0, endY: 0, active: false, visible: false });
+          setSelectionRect({ startX: 0, startY: 0, width: 0, height: 0, visible: false });
+          clearSelection();
           break;
         default:
           break;
@@ -158,7 +169,7 @@ export default function LayoutCanvas() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setActiveTool, selectedShapeIds, deleteShapes, clearSelection]);
+  }, [setActiveTool, setActiveInstance, selectedShapeIds, deleteShapes, clearSelection, undo, activeTool, draftPath]);
 
   // Wheel to zoom
   const handleWheel = (e) => {

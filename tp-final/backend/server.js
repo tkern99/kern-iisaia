@@ -38,12 +38,12 @@ if (projectCount === 0) {
     const cells = extractArray();
     
     const insertProj = db.prepare("INSERT INTO projects (user_id, name, description) VALUES (?, ?, ?)");
-    const insertVer = db.prepare("INSERT INTO versions (project_id, snapshot, version_msg) VALUES (?, ?, ?)");
+    const insertVer = db.prepare("INSERT INTO versions (project_id, version_num, label, snapshot) VALUES (?, '1.0', ?, ?)");
     
     db.transaction(() => {
       for (const cell of cells) {
-        const info = insertProj.run(1, cell.name, cell.description);
-        insertVer.run(info.lastInsertRowid, JSON.stringify(cell.shapes), "Initial seed");
+        const info = insertProj.run(1, cell.name, cell.description || '');
+        insertVer.run(info.lastInsertRowid, "Initial seed", JSON.stringify(cell.shapes));
       }
     })();
     console.log("Seeded database with default standard cells.");
