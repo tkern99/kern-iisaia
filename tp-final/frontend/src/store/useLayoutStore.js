@@ -8,6 +8,8 @@ export const useLayoutStore = create((set) => ({
   libraryCells: [],
   activeInstance: null,
   projectName: 'mi_inversor',
+  currentLayoutId: null,
+  currentLayoutLock: null, // { isCheckedOut: false, checkedOutBy: null, checkedOutByEmail: null }
   fitViewTrigger: 0,
   libraryRefreshTrigger: 0,
   drcViolations: [],
@@ -17,6 +19,8 @@ export const useLayoutStore = create((set) => ({
   
   // Actions
   setProjectName: (name) => set({ projectName: name }),
+  setCurrentLayoutLock: (lockInfo) => set({ currentLayoutLock: lockInfo }),
+  setCurrentLayoutId: (id) => set({ currentLayoutId: id }),
   triggerFitView: () => set((state) => ({ fitViewTrigger: state.fitViewTrigger + 1 })),
   triggerLibraryRefresh: () => set((state) => ({ libraryRefreshTrigger: state.libraryRefreshTrigger + 1 })),
   setDrcViolations: (violations) => set({ drcViolations: violations }),
@@ -85,13 +89,15 @@ export const useLayoutStore = create((set) => ({
     };
   }),
   
-  // Entire load: updates shapes, triggers fit view, and optionally updates project name
-  loadProject: (shapes, name) => set((state) => ({
+  // Entire load: updates shapes, triggers fit view, and optionally updates project name / lock
+  loadProject: (shapes, name, id = null, lockInfo = null) => set((state) => ({
     shapes: Array.isArray(shapes) ? shapes : [],
     selectedShapeIds: [],
     history: [],
     drcViolations: [],
     fitViewTrigger: state.fitViewTrigger + 1,
-    ...(name ? { projectName: name } : {})
+    ...(name ? { projectName: name } : {}),
+    ...(id !== null ? { currentLayoutId: id } : {}),
+    ...(lockInfo !== null ? { currentLayoutLock: lockInfo } : {})
   }))
 }));

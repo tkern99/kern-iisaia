@@ -5,10 +5,98 @@
  * Algorithm:
  * 1. Count devices by type in layout vs schematic
  * 2. Match layout pins (by name from PinM1/PinM2 shapes) to schematic pins
- * 3. For each schematic device, find a layout device with matching type
- *    and matching terminal connectivity relative to matched pins
- * 4. Build a detailed report
+ * 3. Match devices and connectivity:
+ *    - Resolves known pins (VDD, VSS, IN, OUT, A, B)
+ *    - Automatically tracks internal nets (e.g. intermediate node in series transistors)
+ *    - Handles Drain/Source MOSFET symmetry
+ *    - Supports symmetric input pin permutations (A/B interchangeability in logic gates)
+ * 4. Build a detailed educational report
  */
+
+function matchTopology(layoutDevs, schDevices, basePinNetMap) {
+  const pinNetMap = { ...basePinNetMap };
+  const usedLayoutDevs = new Set();
+  const matchedList = [];
+  const errors = [];
+  const details = [];
+
+  for (const schDev of schDevices) {
+    let bestMatch = null;
+    let bestIdx = -1;
+    let newlyMappedInternalNets = {};
+
+    for (let idx = 0; idx < layoutDevs.length; idx++) {
+      if (usedLayoutDevs.has(idx)) continue;
+      const ld = layoutDevs[idx];
+      if (ld.type !== schDev.type) continue;
+
+      // Gate and Body check
+      const expectedG = pinNetMap[schDev.terminals.G];
+      const expectedB = pinNetMap[schDev.terminals.B];
+
+      if (expectedG !== undefined && expectedG !== null && ld.G !== expectedG) continue;
+      if (expectedB !== undefined && expectedB !== null && ld.B !== expectedB) continue;
+
+      // Drain and Source check (MOSFET D/S are symmetric)
+      const expectedD = pinNetMap[schDev.terminals.D];
+      const expectedS = pinNetMap[schDev.terminals.S];
+
+      let dsMatch = false;
+      let discoveredInternal = {};
+
+      // Case 1: direct (ld.D matches D, ld.S matches S)
+      const dMatches = (expectedD === undefined || expectedD === null) || (ld.D === expectedD);
+      const sMatches = (expectedS === undefined || expectedS === null) || (ld.S === expectedS);
+
+      // Case 2: swapped (ld.D matches S, ld.S matches D)
+      const dSwappedMatches = (expectedS === undefined || expectedS === null) || (ld.D === expectedS);
+      const sSwappedMatches = (expectedD === undefined || expectedD === null) || (ld.S === expectedD);
+
+      if (dMatches && sMatches) {
+        dsMatch = true;
+        if ((expectedD === undefined || expectedD === null) && ld.D !== undefined) {
+          discoveredInternal[schDev.terminals.D] = ld.D;
+        }
+        if ((expectedS === undefined || expectedS === null) && ld.S !== undefined) {
+          discoveredInternal[schDev.terminals.S] = ld.S;
+        }
+      } else if (dSwappedMatches && sSwappedMatches) {
+        dsMatch = true;
+        if ((expectedS === undefined || expectedS === null) && ld.D !== undefined) {
+          discoveredInternal[schDev.terminals.S] = ld.D;
+        }
+        if ((expectedD === undefined || expectedD === null) && ld.S !== undefined) {
+          discoveredInternal[schDev.terminals.D] = ld.S;
+        }
+      }
+
+      if (dsMatch) {
+        bestMatch = ld;
+        bestIdx = idx;
+        newlyMappedInternalNets = discoveredInternal;
+        break;
+      }
+    }
+
+    if (bestMatch) {
+      usedLayoutDevs.add(bestIdx);
+      Object.assign(pinNetMap, newlyMappedInternalNets);
+      matchedList.push({ schDev, ld: bestMatch });
+      details.push(
+        `  ${schDev.name} (${schDev.type}): G=net#${bestMatch.G ?? '?'} D=net#${bestMatch.D ?? '?'} ` +
+        `S=net#${bestMatch.S ?? '?'} B=net#${bestMatch.B ?? '?'}  ✔`
+      );
+    } else {
+      const termStr = Object.entries(schDev.terminals)
+        .map(([t, n]) => `${t}=${n}(net#${pinNetMap[n] ?? '?'})`)
+        .join(', ');
+      errors.push(`${schDev.name} (${schDev.type}): no se encontró dispositivo coincidente`);
+      details.push(`  ${schDev.name}: NO MATCH — esperado ${termStr} ✘`);
+    }
+  }
+
+  return { pass: errors.length === 0, errors, details, matchedList };
+}
 
 /**
  * @param {{ devices, pins, nets }} layoutNetlist
@@ -20,7 +108,7 @@ export function runLVS(layoutNetlist, schematic) {
   const warnings = [];
   const details  = [];
 
-  const { devices: layoutDevs, pins: layoutPins, nets } = layoutNetlist;
+  const { devices: layoutDevs, pins: layoutPins } = layoutNetlist;
 
   // ─── 1. Device count check ──────────────────────────────────────────────────
   const schTypes = {};
@@ -70,57 +158,21 @@ export function runLVS(layoutNetlist, schematic) {
 
   // ─── 3. Device connectivity check ──────────────────────────────────────────
   details.push('── Conectividad de dispositivos ────────────────────────');
-  const usedLayoutDevs = new Set();
 
-  for (const schDev of schematic.devices) {
-    // Resolve schematic terminal names to layout netIds via pinNetMap
-    const schResolved = {};
-    let resolveOk = true;
-    for (const [term, netName] of Object.entries(schDev.terminals)) {
-      if (pinNetMap[netName] !== undefined) {
-        schResolved[term] = pinNetMap[netName];
-      } else {
-        // Internal net - we can only partially check topology
-        schResolved[term] = null;
-        resolveOk = false;
-      }
-    }
+  // Try direct pin match
+  let result = matchTopology(layoutDevs, schematic.devices, pinNetMap);
 
-    // Find a matching layout device
-    const match = layoutDevs.find((ld, idx) => {
-      if (usedLayoutDevs.has(idx)) return false;
-      if (ld.type !== schDev.type) return false;
-      // Check terminals that we could resolve to netIds
-      for (const [term, expectedNetId] of Object.entries(schResolved)) {
-        if (expectedNetId === null) continue; // skip unresolved internal nets
-        const layoutNetId = ld[term];
-        // Accept D/S swap (they're symmetric in a MOSFET)
-        if (term === 'D' || term === 'S') {
-          const match = layoutNetId === expectedNetId ||
-                        ld.D === schResolved.S || ld.S === schResolved.D;
-          if (!match) return false;
-        } else {
-          if (layoutNetId !== expectedNetId) return false;
-        }
-      }
-      return true;
-    });
-
-    if (!match) {
-      const termStr = Object.entries(schDev.terminals)
-        .map(([t, n]) => `${t}=${n}(net#${pinNetMap[n] ?? '?'})`)
-        .join(', ');
-      errors.push(`${schDev.name} (${schDev.type}): no se encontró dispositivo coincidente`);
-      details.push(`  ${schDev.name}: NO MATCH — esperado ${termStr} ✘`);
-    } else {
-      const idx = layoutDevs.indexOf(match);
-      usedLayoutDevs.add(idx);
-      details.push(
-        `  ${schDev.name} (${schDev.type}): G=net#${match.G ?? '?'} D=net#${match.D ?? '?'} ` +
-        `S=net#${match.S ?? '?'} B=net#${match.B ?? '?'}  ✔`
-      );
+  // If failed and schematic has symmetric inputs 'A' and 'B', try swapped permutation
+  if (!result.pass && pinNetMap['A'] !== undefined && pinNetMap['B'] !== undefined) {
+    const swappedPins = { ...pinNetMap, A: pinNetMap['B'], B: pinNetMap['A'] };
+    const altResult = matchTopology(layoutDevs, schematic.devices, swappedPins);
+    if (altResult.pass || altResult.errors.length < result.errors.length) {
+      result = altResult;
     }
   }
+
+  details.push(...result.details);
+  errors.push(...result.errors);
 
   const pass = errors.length === 0;
   return { pass, errors, warnings, details };

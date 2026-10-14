@@ -1,40 +1,49 @@
 .lvs-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0, 0, 0, 0.78);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
+  padding: 16px;
 }
 
 .lvs-modal {
-  background: #1a1a2e;
+  background: #151926;
   border: 1px solid #334155;
   border-radius: 12px;
-  width: 680px;
-  max-height: 85vh;
+  width: 860px;
+  max-width: 95vw;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 60px rgba(0,0,0,0.7);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
   overflow: hidden;
 }
 
 .lvs-modal-header {
-  padding: 18px 24px;
-  background: linear-gradient(90deg, #0f3460, #16213e);
+  padding: 14px 20px;
+  background: linear-gradient(90deg, #1e293b, #0f172a);
   border-bottom: 1px solid #334155;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.lvs-modal-header h2 {
+.lvs-header-title h2 {
   margin: 0;
   font-size: 1.1rem;
-  color: #e2e8f0;
-  letter-spacing: 0.05em;
+  color: #38bdf8;
+  letter-spacing: 0.03em;
+}
+
+.lvs-header-subtitle {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
 }
 
 .lvs-close {
@@ -49,101 +58,172 @@
 .lvs-close:hover { color: #fff; }
 
 .lvs-body {
-  padding: 20px 24px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   overflow-y: auto;
 }
 
 .lvs-section-label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: bold;
-  color: #64748b;
-  letter-spacing: 0.08em;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 6px;
 }
 
+/* Grilla compacta de esquemáticos (2 columnas responsivas) */
 .lvs-schematic-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 8px;
+  max-height: 140px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Scrollbar sutil para la lista de esquemáticos */
+.lvs-schematic-list::-webkit-scrollbar {
+  width: 5px;
+}
+.lvs-schematic-list::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
 }
 
 .lvs-schematic-item {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #334155;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid #2a374f;
   cursor: pointer;
-  background: #16213e;
+  background: #111726;
   transition: background 0.15s, border-color 0.15s;
 }
-.lvs-schematic-item:hover { background: #1e2d4a; border-color: #4f6fa0; }
-.lvs-schematic-item.selected { background: #0f3460; border-color: #3b82f6; }
-.lvs-schematic-item input[type="radio"] { margin-top: 2px; accent-color: #3b82f6; }
-.lvs-schematic-item .item-info h3 { margin: 0 0 2px; font-size: 0.9rem; color: #e2e8f0; }
-.lvs-schematic-item .item-info p  { margin: 0; font-size: 0.78rem; color: #64748b; }
-.lvs-schematic-item .item-badge {
-  margin-left: auto;
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: #334155;
+.lvs-schematic-item:hover { background: #1a233a; border-color: #3b82f6; }
+.lvs-schematic-item.selected { background: #1e3a8a; border-color: #60a5fa; }
+.lvs-schematic-item input[type="radio"] { margin: 0; accent-color: #38bdf8; flex-shrink: 0; }
+
+.lvs-schematic-item .item-info {
+  flex: 1;
+  min-width: 0;
+}
+.lvs-schematic-item .item-info h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lvs-schematic-item .item-info p {
+  margin: 1px 0 0 0;
+  font-size: 0.72rem;
   color: #94a3b8;
   white-space: nowrap;
-  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lvs-schematic-item .item-badge {
+  font-size: 0.68rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #1e293b;
+  color: #93c5fd;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Barra unificada de Acción (Info de Canvas + Botón Ejecutar) */
+.lvs-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0f172a;
+  border: 1px solid #334155;
+  padding: 8px 14px;
+  border-radius: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lvs-canvas-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.lvs-canvas-stats strong {
+  color: #e2e8f0;
+}
+
+.stats-icon {
+  font-size: 0.95rem;
 }
 
 .lvs-run-btn {
-  padding: 11px 24px;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  padding: 8px 18px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  font-size: 0.95rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
   font-weight: bold;
   cursor: pointer;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   transition: opacity 0.15s;
+  flex-shrink: 0;
 }
 .lvs-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.lvs-run-btn:not(:disabled):hover { opacity: 0.85; }
+.lvs-run-btn:not(:disabled):hover { opacity: 0.9; }
 
 /* Report */
 .lvs-report {
   border-radius: 8px;
   border: 1px solid #334155;
   overflow: hidden;
+  margin-top: 4px;
 }
 
 .lvs-report-banner {
-  padding: 14px 20px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 1.1rem;
-  font-weight: bold;
 }
 .lvs-report-banner.pass { background: #052e16; color: #4ade80; border-bottom: 1px solid #166534; }
 .lvs-report-banner.fail { background: #2d0a0a; color: #f87171; border-bottom: 1px solid #7f1d1d; }
 
-.lvs-report-icon { font-size: 1.5rem; }
+.lvs-report-icon { font-size: 1.4rem; }
+
+.banner-title {
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+
+.banner-subtitle {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  margin-top: 1px;
+}
 
 .lvs-report-body {
-  padding: 14px 18px;
-  background: #0d1117;
+  padding: 12px 16px;
+  background: #090d16;
   font-family: 'Courier New', monospace;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: #94a3b8;
-  max-height: 280px;
+  max-height: 240px;
   overflow-y: auto;
 }
 
-.lvs-report-body .detail-line { white-space: pre; }
+.lvs-report-body .detail-line { white-space: pre-wrap; word-break: break-all; }
 .lvs-report-body .detail-line.error   { color: #f87171; }
 .lvs-report-body .detail-line.warn    { color: #fbbf24; }
 .lvs-report-body .detail-line.pass    { color: #4ade80; }

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLayoutStore } from '../../store/useLayoutStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import './VersionsModal.css';
 
 export default function VersionsModal({ onClose, currentProjectName, onSelectProject }) {
-  const { shapes, loadProject } = useLayoutStore();
+  const { shapes, loadProject, setCurrentLayoutLock, setCurrentLayoutId } = useLayoutStore();
+  const { user } = useAuthStore();
   const [layouts, setLayouts] = useState([]);
   const [selectedLayoutId, setSelectedLayoutId] = useState(null);
   const [versions, setVersions] = useState([]);
@@ -11,6 +13,7 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
   const [statusMsg, setStatusMsg] = useState(null); // { type: 'success'|'error', text: '', details: [] }
   const [newLayoutName, setNewLayoutName] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [checkinComment, setCheckinComment] = useState('');
 
   // Cargar lista de layouts al abrir
   useEffect(() => {
@@ -26,9 +29,15 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
       if (data.length > 0) {
         // Seleccionar por defecto el que coincida con currentProjectName o el primero
         const match = data.find(l => l.name === currentProjectName);
-        const idToSelect = match ? match.id : data[0].id;
-        setSelectedLayoutId(idToSelect);
-        fetchVersions(idToSelect);
+        const itemToSelect = match || data[0];
+        setSelectedLayoutId(itemToSelect.id);
+        setCurrentLayoutId(itemToSelect.id);
+        setCurrentLayoutLock({
+          isCheckedOut: itemToSelect.is_checked_out,
+          checkedOutBy: itemToSelect.checked_out_by,
+          checkedOutByEmail: itemToSelect.checked_out_by_email
+        });
+        fetchVersions(itemToSelect.id);
       }
     } catch (err) {
       console.error(err);
@@ -55,6 +64,12 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
 
   const handleSelectLayout = (layout) => {
     setSelectedLayoutId(layout.id);
+    setCurrentLayoutId(layout.id);
+    setCurrentLayoutLock({
+      isCheckedOut: layout.is_checked_out,
+      checkedOutBy: layout.checked_out_by,
+      checkedOutByEmail: layout.checked_out_by_email
+    });
     if (onSelectProject) onSelectProject(layout.name);
     fetchVersions(layout.id);
   };
@@ -65,21 +80,29 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
     setStatusMsg(null);
     try {
       const res = await fetch(`http://localhost:3001/api/layouts/${selectedLayoutId}/checkout`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user?.id || 1 })
       });
       const data = await res.json();
       if (res.status === 409) {
         setStatusMsg({
           type: 'error',
-          text: '🔒 Conflicto de checkout: El layout ya se encuentra bloqueado para edición por otro usuario.'
+          text: `🔒 Conflicto de checkout: ${data.detail || 'El layout ya está bloqueado por otro usuario.'}`
         });
         return;
       }
       if (!res.ok) throw new Error(data.detail || 'Fallo al realizar checkout');
-      
+
+      setCurrentLayoutLock({
+        isCheckedOut: true,
+        checkedOutBy: user?.id || 1,
+        checkedOutByEmail: user?.email || 'tú'
+      });
+
       setStatusMsg({
         type: 'success',
-        text: '✔ Checkout exitoso: El layout está bloqueado para tu sesión de edición.'
+        text: `✔ Checkout exitoso: El layout está bloqueado para tu usuario (${user?.email || 'actual'}).`
       });
       fetchLayouts();
     } catch (err) {
@@ -87,7 +110,7 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
     }
   };
 
-  // 2. Check-in (Guardar versión actual del Canvas con validación DRC)
+  // 2. Check-in (Guardar versión actual del Canvas con validación DRC y Comentario)
   const handleCheckin = async () => {
     if (!selectedLayoutId) return;
     if (shapes.length === 0) {
@@ -104,9 +127,21 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
       const res = await fetch(`http://localhost:3001/api/layouts/${selectedLayoutId}/versions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: shapes })
+        body: JSON.stringify({
+          data: shapes,
+          user_id: user?.id || 1,
+          comment: checkinComment.trim()
+        })
       });
       const data = await res.json();
+
+      if (res.status === 403 || res.status === 409) {
+        setStatusMsg({
+          type: 'error',
+          text: `🔒 Acción rechazada: ${data.detail || 'El layout está bloqueado por otro usuario.'}`
+        });
+        return;
+      }
 
       if (res.status === 400) {
         const details = data.detail?.details || [data.detail?.error || 'Violación de reglas DRC'];
@@ -118,19 +153,18 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
         return;
       }
 
-      if (res.status === 409) {
-        setStatusMsg({
-          type: 'error',
-          text: '🔒 Conflicto de versión simultánea (409): Intenta guardar nuevamente.'
-        });
-        return;
-      }
+      if (!res.ok) throw new Error(data.detail?.error || data.detail || 'Error al guardar versión');
 
-      if (!res.ok) throw new Error(data.detail?.error || 'Error al guardar versión');
+      setCurrentLayoutLock({
+        isCheckedOut: false,
+        checkedOutBy: null,
+        checkedOutByEmail: null
+      });
 
+      setCheckinComment('');
       setStatusMsg({
         type: 'success',
-        text: `✔ Check-in exitoso: Guardada versión #${data.version_number}. El layout ha sido liberado.`
+        text: `✔ Check-in exitoso: Guardada versión #${data.version_number}${data.comment ? ` ("${data.comment}")` : ''}. El layout ha sido liberado.`
       });
 
       fetchVersions(selectedLayoutId);
@@ -148,7 +182,19 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
         shapesToLoad = shapesToLoad.shapes || shapesToLoad.polygons || [];
       }
       if (!Array.isArray(shapesToLoad)) shapesToLoad = [];
-      loadProject(shapesToLoad);
+      
+      const currentLayoutObj = layouts.find(l => l.id === selectedLayoutId);
+      loadProject(
+        shapesToLoad,
+        currentLayoutObj ? currentLayoutObj.name : currentProjectName,
+        selectedLayoutId,
+        currentLayoutObj ? {
+          isCheckedOut: currentLayoutObj.is_checked_out,
+          checkedOutBy: currentLayoutObj.checked_out_by,
+          checkedOutByEmail: currentLayoutObj.checked_out_by_email
+        } : null
+      );
+
       setStatusMsg({
         type: 'success',
         text: `✔ Versión #${ver.version_number} cargada exitosamente en el Canvas (${shapesToLoad.length} formas).`
@@ -167,7 +213,7 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
       const res = await fetch('http://localhost:3001/api/layouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newLayoutName.trim(), pdk_id: 1 })
+        body: JSON.stringify({ name: newLayoutName.trim(), pdk_id: 1, user_id: user?.id || 1 })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Error al crear layout');
@@ -176,6 +222,12 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
       setShowCreateForm(false);
       await fetchLayouts();
       setSelectedLayoutId(data.id);
+      setCurrentLayoutId(data.id);
+      setCurrentLayoutLock({
+        isCheckedOut: false,
+        checkedOutBy: null,
+        checkedOutByEmail: null
+      });
       fetchVersions(data.id);
       if (onSelectProject) onSelectProject(data.name);
     } catch (err) {
@@ -184,6 +236,8 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
   };
 
   const selectedLayout = layouts.find(l => l.id === selectedLayoutId);
+  const isLockedByOther = selectedLayout?.is_checked_out && selectedLayout?.checked_out_by !== user?.id;
+  const isLockedByMe = selectedLayout?.is_checked_out && selectedLayout?.checked_out_by === user?.id;
 
   return (
     <div className="versions-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -192,7 +246,9 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
         <div className="versions-modal-header">
           <div className="versions-title-group">
             <h2>📦 Control de Versiones & Checkout (FastAPI)</h2>
-            <span className="versions-subtitle">Simulador de Layout Educativo GPDK045</span>
+            <span className="versions-subtitle">
+              Sesión activa: <strong>{user?.email || 'Sin usuario'}</strong> (ID: {user?.id || 1})
+            </span>
           </div>
           <button className="versions-close" onClick={onClose} title="Cerrar">×</button>
         </div>
@@ -224,18 +280,29 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
             )}
 
             <div className="layout-chips-list">
-              {layouts.map(l => (
-                <div
-                  key={l.id}
-                  className={`layout-chip ${selectedLayoutId === l.id ? 'active' : ''}`}
-                  onClick={() => handleSelectLayout(l)}
-                >
-                  <span className="chip-name">{l.name}</span>
-                  <span className={`chip-badge ${l.is_checked_out ? 'checked-out' : 'available'}`}>
-                    {l.is_checked_out ? '🔒 Checked out' : '🔓 Disponible'}
-                  </span>
-                </div>
-              ))}
+              {layouts.map(l => {
+                const itemLockedByOther = l.is_checked_out && l.checked_out_by !== user?.id;
+                const itemLockedByMe = l.is_checked_out && l.checked_out_by === user?.id;
+
+                return (
+                  <div
+                    key={l.id}
+                    className={`layout-chip ${selectedLayoutId === l.id ? 'active' : ''}`}
+                    onClick={() => handleSelectLayout(l)}
+                  >
+                    <span className="chip-name">{l.name}</span>
+                    <span className={`chip-badge ${
+                      itemLockedByOther ? 'checked-out' : itemLockedByMe ? 'available' : 'available'
+                    }`}>
+                      {itemLockedByOther
+                        ? `🔒 ${l.checked_out_by_email || 'Bloqueado'}`
+                        : itemLockedByMe
+                        ? '🔒 Por ti'
+                        : '🔓 Libre'}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -247,26 +314,63 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
                   <h3>{selectedLayout.name}</h3>
                   <span className="pdk-tag">PDK: {selectedLayout.pdk_name || 'GPDK045'}</span>
                   <span className="status-tag">
-                    Estado: {selectedLayout.is_checked_out ? 'Bloqueado para edición (Checked out)' : 'Disponible para Check-out'}
+                    Estado: {isLockedByOther ? (
+                      <span style={{ color: '#f87171' }}>
+                        🔒 Bloqueado por <strong>{selectedLayout.checked_out_by_email}</strong> (Solo lectura)
+                      </span>
+                    ) : isLockedByMe ? (
+                      <span style={{ color: '#4ade80' }}>
+                        ✔ Bloqueado por ti para edición exclusiva
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94a3b8' }}>
+                        🔓 Libre (Disponible para Checkout)
+                      </span>
+                    )}
                   </span>
                 </div>
+
                 <div className="action-buttons-group">
                   <button
                     className="btn-checkout"
                     disabled={selectedLayout.is_checked_out}
                     onClick={handleCheckout}
-                    title="Bloquea el layout exclusivamente para tu edición"
+                    title={
+                      isLockedByOther
+                        ? `Bloqueado por ${selectedLayout.checked_out_by_email}`
+                        : isLockedByMe
+                        ? 'Ya tienes el layout en checkout'
+                        : 'Bloquea el layout exclusivamente para tu edición'
+                    }
                   >
                     🔒 Checkout
                   </button>
                   <button
                     className="btn-checkin"
+                    disabled={isLockedByOther}
                     onClick={handleCheckin}
-                    title="Valida DRC y guarda el contenido actual del Canvas como nueva versión"
+                    title={
+                      isLockedByOther
+                        ? `Bloqueado por ${selectedLayout.checked_out_by_email}. No puedes guardar.`
+                        : 'Valida DRC y guarda el contenido actual del Canvas como nueva versión (libera el layout)'
+                    }
                   >
                     💾 Check-in (Guardar Canvas)
                   </button>
                 </div>
+              </div>
+
+              {/* Campo para comentario de la versión */}
+              <div className="checkin-comment-row">
+                <span className="comment-icon">💬</span>
+                <input
+                  type="text"
+                  className="checkin-comment-input"
+                  placeholder="Comentario para la nueva versión (ej. 'Agregado de inversor y contactos')..."
+                  value={checkinComment}
+                  onChange={e => setCheckinComment(e.target.value)}
+                  disabled={isLockedByOther}
+                />
               </div>
             </div>
           )}
@@ -311,6 +415,11 @@ export default function VersionsModal({ onClose, currentProjectName, onSelectPro
                       <div className="version-badge">v{ver.version_number}</div>
                       <div className="version-info">
                         <div className="version-title">Versión #{ver.version_number}</div>
+                        {ver.comment && (
+                          <div className="version-comment-badge" title="Comentario de la versión">
+                            💬 {ver.comment}
+                          </div>
+                        )}
                         <div className="version-details">
                           {shapeCount} {shapeCount === 1 ? 'geometría' : 'geometrías'} (shapes)
                         </div>

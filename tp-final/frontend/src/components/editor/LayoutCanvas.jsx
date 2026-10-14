@@ -2,14 +2,17 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Stage, Layer, Rect, Group, Line, Text } from 'react-konva';
 import { useLayoutStore } from '../../store/useLayoutStore';
 import { useToolStore } from '../../store/useToolStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { GPDK045_LAYERS } from '../../data/gpdk045_layers';
 import GridLayer from './GridLayer';
 import { getStipplePattern } from '../../utils/stipplePatterns';
 import './LayoutCanvas.css';
 
 export default function LayoutCanvas() {
-  const { shapes, activeLayer, activeInstance, setActiveInstance, addShape, addShapes, updateShape, moveShapes, layersState, selectedShapeIds, setSelection, clearSelection, deleteShapes, undo, fitViewTrigger, drcViolations } = useLayoutStore();
+  const { shapes, activeLayer, activeInstance, setActiveInstance, addShape, addShapes, updateShape, moveShapes, layersState, selectedShapeIds, setSelection, clearSelection, deleteShapes, undo, fitViewTrigger, drcViolations, currentLayoutLock } = useLayoutStore();
   const { activeTool, snapGrid, setActiveTool } = useToolStore();
+  const { user } = useAuthStore();
+  const isLockedByOther = currentLayoutLock?.isCheckedOut && currentLayoutLock?.checkedOutBy !== user?.id;
   
   const [scale, setScale] = useState(1000); // 1 um = 1000 px initial zoom
   const [position, setPosition] = useState({ x: 200, y: 200 });
@@ -676,6 +679,11 @@ export default function LayoutCanvas() {
 
   return (
     <div className="canvas-container" ref={containerRef}>
+      {isLockedByOther && (
+        <div className="canvas-locked-banner">
+          🔒 <strong>Modo Solo Lectura:</strong> Este layout está en checkout por <em>{currentLayoutLock?.checkedOutByEmail}</em>. No puedes modificarlo hasta que se haga check-in.
+        </div>
+      )}
       <Stage
         width={dimensions.width}
         height={dimensions.height}

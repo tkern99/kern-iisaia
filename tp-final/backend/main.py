@@ -1,134 +1,148 @@
+"""
+main.py — Punto de entrada del backend de EduLayout.
+
+Estructura del proyecto:
+  main.py       → este archivo: arranca el servidor y conecta todo
+  handler.py    → endpoints de la API (/api/layouts, /api/projects, etc.)
+  database.sql  → schema de la base de datos SQLite
+  openapi.yaml  → documentación de la API (referencia, no se usa en código)
+
+Para correr el servidor:
+  python main.py
+  — o —
+  python -m uvicorn main:app --port 3001 --reload
+"""
+
 import os
+import sqlite3
 from pathlib import Path
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
-from fastapi.staticfiles import StaticFiles
 
-from database import init_db
-from auth import router as auth_router
-from routes.pdks import router as pdks_router
-from routes.layouts import router as layouts_router
+from handler import router
 
-# Inicializar DB SQLite
+# ─── Inicializar la base de datos ────────────────────────────────────────────
+
+DB_PATH = Path(__file__).parent / "simulator.db"
+SCHEMA_PATH = Path(__file__).parent / "database.sql"
+
+
+def init_db():
+    """
+    Crea las tablas e inserta datos iniciales leyendo database.sql.
+    Usa CREATE TABLE IF NOT EXISTS, por lo que es seguro llamar siempre al inicio.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    schema = SCHEMA_PATH.read_text(encoding="utf-8")
+    conn.executescript(schema)
+
+    # Migración segura: agregar checked_out_by si la base de datos ya existía
+    table_info = conn.execute("PRAGMA table_info(layouts)").fetchall()
+    columns = [col[1] for col in table_info]
+    if "checked_out_by" not in columns:
+        conn.execute("ALTER TABLE layouts ADD COLUMN checked_out_by INTEGER REFERENCES users(id)")
+
+    # Migración segura: agregar password en users
+    user_info = conn.execute("PRAGMA table_info(users)").fetchall()
+    user_cols = [col[1] for col in user_info]
+    if "password" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN password TEXT NOT NULL DEFAULT '1234'")
+
+    # Migración segura: agregar comment en layout_versions
+    ver_info = conn.execute("PRAGMA table_info(layout_versions)").fetchall()
+    ver_cols = [col[1] for col in ver_info]
+    if "comment" not in ver_cols:
+        conn.execute("ALTER TABLE layout_versions ADD COLUMN comment TEXT DEFAULT ''")
+
+    # Asegurar usuario inicial demo con contraseña por defecto
+    conn.execute("INSERT OR IGNORE INTO users (id, email, password) VALUES (1, 'demo@edulayout.org', '1234')")
+    # Actualizar contraseñas si eran null o vacías
+    conn.execute("UPDATE users SET password = '1234' WHERE password IS NULL OR password = ''")
+
+    # Sembrar celdas estándar si la DB está vacía
+    count = conn.execute("SELECT COUNT(*) FROM layouts").fetchone()[0]
+    if count == 0:
+        seed_standard_cells(conn)
+
+    conn.commit()
+    conn.close()
+    print(f"✔ Base de datos lista en: {DB_PATH}")
+
+
+def seed_standard_cells(conn):
+    """Carga las 3 celdas estándar del PDK GPDK045 como layouts iniciales."""
+    import json
+    # Leer desde el frontend para mantener una única fuente de verdad
+    std_cells_path = Path(__file__).parent.parent / "frontend" / "src" / "data" / "standardCells.js"
+    cells = []
+
+    if std_cells_path.exists():
+        # Extraer el array JS con una función temporal
+        content = std_cells_path.read_text(encoding="utf-8")
+        content = content.replace("export const standardCells", "const standardCells")
+        try:
+            ns = {}
+            exec(
+                "import json\n" + content.replace("export ", "") +
+                "\nresult = [{'name': c['name'], 'shapes': c['shapes']} for c in standardCells]",
+                ns
+            )
+            cells = ns.get("result", [])
+        except Exception:
+            cells = []
+
+    if not cells:
+        # Fallback: 3 celdas mínimas hardcodeadas
+        cells = [
+            {"name": "nmos_min",  "shapes": []},
+            {"name": "pmos_min",  "shapes": []},
+            {"name": "inv_cmos",  "shapes": []},
+        ]
+
+    for cell in cells:
+        cur = conn.execute(
+            "INSERT INTO layouts (name, pdk_id, user_id, is_checked_out) VALUES (?, 1, 1, 0)",
+            (cell["name"],)
+        )
+        conn.execute(
+            "INSERT INTO layout_versions (layout_id, version_number, data) VALUES (?, 1, ?)",
+            (cur.lastrowid, json.dumps(cell["shapes"]))
+        )
+    print(f"✔ Celdas estándar cargadas: {[c['name'] for c in cells]}")
+
+
+# ─── Crear la app FastAPI ─────────────────────────────────────────────────────
+
 init_db()
 
 app = FastAPI(
-    title="Educational Layout Simulator API",
+    title="EduLayout API",
     version="1.0.0",
-    description="API REST para el simulador de layout educativo (PDK GPDK045 45nm, control de versiones y checkout/checkin)."
+    description="Backend para el editor de layouts CMOS educativo (PDK GPDK045 45nm)."
 )
 
-# 1. Middleware para proteger rutas /api
-@app.middleware("http")
-async def require_auth_for_api(request: Request, call_next):
-    public_paths = [
-        "/api/health", 
-        "/api/docs", 
-        "/api/openapi.json", 
-        "/api/auth/login", 
-        "/api/logged-out", 
-        "/api/me",
-        "/login",
-        "/callback",
-        "/logout",
-        "/logged-out"
-    ]
-    
-    path = request.url.path
-    if path.startswith("/api") and path not in public_paths:
-        user = request.session.get('user') if "session" in request.scope else None
-        dev_bypass = os.getenv("DEV_BYPASS_AUTH", "true").lower() == "true"
-        if not user and not dev_bypass:
-            return JSONResponse(
-                status_code=401, 
-                content={"error": "Unauthorized. Inicia sesión primero con /login o en el panel de sesión."}
-            )
-        elif not user and dev_bypass and "session" in request.scope:
-            request.session['user'] = {'id': 1, 'email': 'demo@edulayout.org', 'name': 'Demo User'}
-
-    response = await call_next(request)
-    return response
-
-# 2. Middleware de Sesión con cookies firmadas (debe ir después para envolver las peticiones)
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SECRET_KEY", "edulayout-secret-key-123"),
-    max_age=86400,
-    https_only=False
-)
-
-# 3. Middleware CORS para permitir peticiones desde Vite (puerto 5173 u otros)
+# Permitir peticiones desde el frontend Vite (puerto 5173)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Incluir Routers
-app.include_router(auth_router)
-app.include_router(pdks_router)
-app.include_router(layouts_router)
+# Registrar todos los endpoints definidos en handler.py
+app.include_router(router)
 
-# Aliases de compatibilidad para frontend existente (/api/projects -> /api/layouts)
-@app.get("/api/projects")
-async def get_projects_alias():
-    from routes.layouts import list_layouts
-    return await list_layouts()
-
-@app.post("/api/projects")
-async def create_project_alias(request: Request):
-    from routes.layouts import create_layout, LayoutCreate
-    body = await request.json()
-    layout = LayoutCreate(name=body.get("name", "Nuevo Layout"), pdk_id=body.get("pdk_id", 1))
-    return await create_layout(layout, request)
-
-@app.delete("/api/projects/{id}")
-async def delete_project_alias(id: int):
-    from routes.layouts import delete_layout
-    return await delete_layout(id)
-
-@app.get("/api/projects/{id}/versions")
-async def get_project_versions_alias(id: int):
-    from routes.layouts import list_layout_versions
-    return await list_layout_versions(id)
-
-@app.get("/api/projects/{id}/versions/{version_id}")
-async def get_project_version_alias(id: int, version_id: int):
-    from routes.layouts import get_layout_version
-    return await get_layout_version(id, version_id)
-
-
-@app.post("/api/projects/{id}/versions")
-async def post_project_version_alias(id: int, request: Request):
-    from routes.layouts import checkin_layout_version, LayoutVersionCreate
-    body = await request.json()
-    # Soporta tanto snapshot como data
-    data_content = body.get("data") or body.get("snapshot")
-    if isinstance(data_content, str):
-        import json
-        try:
-            data_content = json.loads(data_content)
-        except Exception:
-            data_content = []
-    skip_drc = body.get("skip_drc", True)
-    ver = LayoutVersionCreate(data=data_content, skip_drc=skip_drc)
-    return await checkin_layout_version(id, ver)
 
 @app.get("/api/health")
-async def health_check():
-    return {"status": "ok", "pdk": "GPDK045", "node": "45nm", "architecture": "FastAPI"}
+def health():
+    return {"status": "ok", "pdk": "GPDK045", "architecture": "FastAPI"}
 
-# Montar frontend estático si existe (para producción en un solo proceso)
-FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
-if FRONTEND_DIST.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
+
+# ─── Arranque directo ─────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "3001"))
-    print(f"Iniciando EduLayout Backend (FastAPI GPDK045 45nm) en puerto {port}...")
+    print(f"Iniciando EduLayout Backend en http://localhost:{port}")
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

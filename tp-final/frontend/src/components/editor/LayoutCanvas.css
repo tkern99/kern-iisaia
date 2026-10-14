@@ -4,4 +4,25 @@
   cursor: crosshair;
   overflow: hidden;
   height: 100%;
+  position: relative;
+}
+
+.canvas-locked-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(220, 38, 38, 0.92);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(254, 202, 202, 0.4);
+  backdrop-filter: blur(4px);
 }

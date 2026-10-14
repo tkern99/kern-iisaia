@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useLayoutStore } from '../../store/useLayoutStore';
 import { extractNetlist } from '../../utils/netlistExtractor';
 import { runLVS }        from '../../utils/lvsEngine';
@@ -7,9 +7,10 @@ import './LvsModal.css';
 
 export default function LvsModal({ onClose }) {
   const { shapes } = useLayoutStore();
-  const [selectedSchId, setSelectedSchId] = useState(null);
+  const [selectedSchId, setSelectedSchId] = useState(schematicNetlists[0]?.id || null);
   const [report, setReport] = useState(null);
   const [running, setRunning] = useState(false);
+  const reportRef = useRef(null);
 
   const handleRun = () => {
     if (!selectedSchId) return;
@@ -22,11 +23,16 @@ export default function LvsModal({ onClose }) {
         const layoutNetlist = extractNetlist(shapes);
         const result = runLVS(layoutNetlist, schematic);
         setReport({ ...result, schematic, layoutNetlist });
+        setTimeout(() => {
+          if (reportRef.current) {
+            reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 50);
       } catch (e) {
         setReport({ pass: false, errors: ['Error interno: ' + e.message], warnings: [], details: [] });
       }
       setRunning(false);
-    }, 300);
+    }, 250);
   };
 
   const getLineClass = (line) => {
@@ -37,20 +43,27 @@ export default function LvsModal({ onClose }) {
     return '';
   };
 
+  const namedPinsCount = shapes.filter(s => s.layerId === 'PinM1' || s.layerId === 'PinM2').length;
+
   return (
     <div className="lvs-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="lvs-modal">
 
         <div className="lvs-modal-header">
-          <h2>⚡ Layout vs. Schematic (LVS)</h2>
-          <button className="lvs-close" onClick={onClose}>×</button>
+          <div className="lvs-header-title">
+            <h2>⚡ Layout vs. Schematic (LVS)</h2>
+            <span className="lvs-header-subtitle">Verificación topológica GPDK045</span>
+          </div>
+          <button className="lvs-close" onClick={onClose} title="Cerrar">×</button>
         </div>
 
         <div className="lvs-body">
 
           {/* Schematic selector */}
-          <div>
-            <div className="lvs-section-label">Seleccionar referencia esquemática</div>
+          <div className="lvs-schematic-section">
+            <div className="lvs-section-label">
+              Seleccionar referencia esquemática ({schematicNetlists.length} celdas disponibles)
+            </div>
             <div className="lvs-schematic-list">
               {schematicNetlists.map(sch => (
                 <label
@@ -76,30 +89,37 @@ export default function LvsModal({ onClose }) {
             </div>
           </div>
 
-          {/* Info about layout */}
-          <div>
-            <div className="lvs-section-label">Canvas actual</div>
-            <div style={{ color: '#64748b', fontSize: '0.82rem' }}>
-              {shapes.length} shapes en el canvas —&nbsp;
-              {shapes.filter(s => s.layerId === 'PinM1' || s.layerId === 'PinM2').length} pines nombrados
+          {/* Unified action bar: Layout summary + Run button */}
+          <div className="lvs-action-bar">
+            <div className="lvs-canvas-stats">
+              <span className="stats-icon">📐</span>
+              <span className="stats-text">
+                Canvas actual: <strong>{shapes.length} formas</strong> · <strong>{namedPinsCount} pines nombrados</strong>
+              </span>
             </div>
-          </div>
 
-          {/* Run button */}
-          <button
-            className="lvs-run-btn"
-            disabled={!selectedSchId || running}
-            onClick={handleRun}
-          >
-            {running ? 'Extrayendo netlist…' : '▶  Ejecutar LVS'}
-          </button>
+            <button
+              className="lvs-run-btn"
+              disabled={!selectedSchId || running}
+              onClick={handleRun}
+            >
+              {running ? 'Extrayendo netlist…' : '▶  Ejecutar LVS'}
+            </button>
+          </div>
 
           {/* Report */}
           {report && (
-            <div className="lvs-report">
+            <div className="lvs-report" ref={reportRef}>
               <div className={`lvs-report-banner ${report.pass ? 'pass' : 'fail'}`}>
                 <span className="lvs-report-icon">{report.pass ? '✅' : '❌'}</span>
-                <span>{report.pass ? 'LVS CORRECTO — Layout coincide con el esquemático' : 'LVS INCORRECTO — Se encontraron errores'}</span>
+                <div>
+                  <div className="banner-title">
+                    {report.pass ? 'LVS CORRECTO — El layout coincide con el esquemático' : 'LVS INCORRECTO — Se encontraron diferencias'}
+                  </div>
+                  <div className="banner-subtitle">
+                    {report.schematic?.name} ({report.schematic?.devices.length} dispositivos, {report.schematic?.pins.length} pines)
+                  </div>
+                </div>
               </div>
 
               <div className="lvs-report-body">
@@ -125,14 +145,14 @@ export default function LvsModal({ onClose }) {
                 ))}
 
                 <br/>
-                <div className="detail-line section">── Resumen de netlist extraída ──────────────────────</div>
-                <div className="detail-line">  Nets:       {report.layoutNetlist.nets.length}</div>
-                <div className="detail-line">  Dispositivos: {report.layoutNetlist.devices.length} ({
+                <div className="detail-line section">── Resumen de netlist extraída del Canvas ───────────</div>
+                <div className="detail-line">  Nets detectadas:       {report.layoutNetlist.nets.length}</div>
+                <div className="detail-line">  Dispositivos hallados: {report.layoutNetlist.devices.length} ({
                   Object.entries(
                     report.layoutNetlist.devices.reduce((acc, d) => { acc[d.type] = (acc[d.type]||0)+1; return acc; }, {})
                   ).map(([t, c]) => `${c} ${t}`).join(', ') || 'ninguno'
                 })</div>
-                <div className="detail-line">  Pines:      {report.layoutNetlist.pins.map(p => p.name).join(', ') || 'ninguno'}</div>
+                <div className="detail-line">  Pines reconocidos:     {report.layoutNetlist.pins.map(p => p.name).join(', ') || 'ninguno'}</div>
               </div>
             </div>
           )}

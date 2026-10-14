@@ -356,6 +356,53 @@
   margin-top: 1px;
 }
 
+.version-comment-badge {
+  font-size: 0.8rem;
+  color: #38bdf8;
+  background-color: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin: 4px 0 2px 0;
+  display: inline-block;
+  font-style: italic;
+}
+
+.checkin-comment-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #334155;
+}
+
+.comment-icon {
+  font-size: 0.95rem;
+}
+
+.checkin-comment-input {
+  flex: 1;
+  background: #0b0f19;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 7px 12px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.checkin-comment-input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+.checkin-comment-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-restore-version {
   background: #047857;
   color: white;

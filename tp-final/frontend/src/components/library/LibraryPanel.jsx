@@ -36,7 +36,10 @@ export default function LibraryPanel() {
                        id: p.id,
                        name: p.name,
                        shapes: Array.isArray(shapes) ? shapes : [],
-                       isLibrary: false
+                       isLibrary: false,
+                       isCheckedOut: p.is_checked_out,
+                       checkedOutBy: p.checked_out_by,
+                       checkedOutByEmail: p.checked_out_by_email
                      };
                    });
               }
@@ -62,7 +65,16 @@ export default function LibraryPanel() {
   const handleLoadToCanvas = (e, cell) => {
     e.stopPropagation();
     if (cell.shapes && cell.shapes.length > 0) {
-      loadProject(cell.shapes, cell.name);
+      loadProject(
+        cell.shapes,
+        cell.name,
+        cell.id || null,
+        cell.isCheckedOut ? {
+          isCheckedOut: cell.isCheckedOut,
+          checkedOutBy: cell.checkedOutBy,
+          checkedOutByEmail: cell.checkedOutByEmail
+        } : { isCheckedOut: false, checkedOutBy: null, checkedOutByEmail: null }
+      );
       setActiveInstance(null);
       setActiveTool('select');
     }
